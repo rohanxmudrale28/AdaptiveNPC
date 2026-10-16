@@ -121,15 +121,15 @@ Conventions:
   - [x] Save benchmark results to `results/benchmarks/env_speed.csv`
   - [x] Target: at least 10k steps/s for a single headless env
   - [x] Commit
-- [ ] **M2 Scripted players**
-  - [ ] Train archetypes: rusher, camper, pattern repeater, random mixer, switcher
-  - [ ] Held-out archetypes: kiter, counter-puncher
-  - [ ] Scripted NPC baseline
-  - [ ] Archetypes can play either side, using the mirrored player-view observation
-  - [ ] Test: each archetype's action histogram differs from the others
-  - [ ] Test: the switcher switches on schedule
-  - [ ] Test: the scripted NPC beats random by more than 80%
-  - [ ] Commit
+- [x] **M2 Scripted players**
+  - [x] Train archetypes: rusher, camper, pattern repeater, random mixer, switcher
+  - [x] Held-out archetypes: kiter, counter-puncher
+  - [x] Scripted NPC baseline
+  - [x] Archetypes can play either side, using the mirrored player-view observation
+  - [x] Test: each archetype's action histogram differs from the others
+  - [x] Test: the switcher switches on schedule
+  - [x] Test: the scripted NPC beats random by more than 80%
+  - [x] Commit
 - [ ] **M3 Game balance**
   - [ ] `balance_matrix.py`: round-robin over all archetypes (train + held-out + scripted NPC + random)
     - [ ] 200 rounds per pair, seeds [0, 1, 2], both side assignments

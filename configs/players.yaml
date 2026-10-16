@@ -1,0 +1,37 @@
+# Scripted archetype parameters, train / held-out split and the switcher schedule.
+seed: 0
+
+train: [rusher, camper, repeater, mixer, switcher]
+heldout: [kiter, counter_puncher]
+
+# 'noise' = probability of replacing the scripted action with a uniformly random one.
+rusher:
+  noise: 0.05
+
+camper:
+  noise: 0.05
+  block_radius: 2        # starts blocking when the opponent is within this Manhattan distance
+  poke_prob: 0.3         # chance to attack instead of block when the opponent is adjacent and in front
+
+repeater:
+  noise: 0.0
+  # tokens: toward, away, up, down, idle, attack, block, dodge (toward/away are relative to the opponent)
+  pattern: [toward, toward, attack, idle, block, block, away, dodge]
+
+mixer:
+  noise: 0.0
+  weights: {idle: 0.10, up: 0.10, down: 0.10, left: 0.10, right: 0.10, attack: 0.25, block: 0.20, dodge: 0.05}
+
+switcher:
+  cycle: [rusher, camper, repeater, mixer]
+  switch_every_rounds: 10  # archetype changes every N rounds
+  switch_at_step: null     # if set (e.g. 75), also move to the next archetype at this step of every round
+
+kiter:
+  noise: 0.05
+
+counter_puncher:
+  noise: 0.05
+
+scripted_npc:            # hand-coded baseline NPC
+  noise: 0.0
