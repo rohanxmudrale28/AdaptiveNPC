@@ -1,0 +1,40 @@
+# PPO NPC training (SB3) and its evaluation grid. Run: python -m scripts.train_npc / scripts.eval_npc
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+predictor_config: configs/predictor.yaml      # 'online' finetune block is reused when eval.predictor_online is true
+predictor_checkpoint: models/predictor.pt     # used by conditioning mode 'predicted' (frozen during training)
+
+ppo:
+  net_arch: [64, 64]                          # policy and value MLPs
+  hparams:                                    # passed straight to stable_baselines3.PPO
+    learning_rate: 0.0003
+    n_steps: 256                              # per env; rollout = n_steps * n_envs
+    batch_size: 256
+    n_epochs: 10
+    gamma: 0.99
+    gae_lambda: 0.95
+    clip_range: 0.2
+    ent_coef: 0.01
+    vf_coef: 0.5
+
+train:
+  modes: [none, predicted, oracle]
+  seeds: [0, 1, 2, 3, 4]
+  total_timesteps: 2000000
+  n_envs: 8
+  vec_env_type: dummy                         # dummy | subproc
+  opponents: null                             # null -> 'train' list from players.yaml (one sampled per round)
+  log_every: 20000                            # timesteps between progress rows
+  model_dir: models/npc                       # gitignored (*.pt)
+  out_dir: results/npc/main/train
+
+eval:
+  out_dir: results/npc/main
+  methods: [scripted, ppo_none, ppo_predicted, ppo_oracle]
+  opponents: null                             # null -> train + heldout lists from players.yaml
+  seeds: [0, 1, 2, 3, 4]                      # also selects which trained PPO seed to load
+  rounds: 30                                  # rounds per match (opponent state persists across them)
+  env_seed_base: 10000
+  deterministic: true                         # greedy PPO actions
+  predictor_online: false                     # true -> predictor finetunes online during the match

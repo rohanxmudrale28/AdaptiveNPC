@@ -1,0 +1,16 @@
+method,opponent,n_seeds,win_rate_mean,win_rate_ci95,mean_return_mean,mean_return_ci95
+scripted,rusher,2,0.625,0.0,0.375,0.0
+scripted,camper,2,0.25,3.1765511840436735,-0.6000000000000001,6.988412604896081
+scripted,kiter,2,0.5,3.1765511840436735,0.04999999999999999,7.623722841704816
+random,rusher,2,0.0,0.0,-1.3625000000000003,0.7941377960109198
+random,camper,2,0.3125,0.7941377960109184,-0.425,1.9059307104262033
+random,kiter,2,0.0,0.0,-1.375,0.3176551184043676
+ppo_none,rusher,2,0.0,0.0,-1.5,0.0
+ppo_none,camper,2,0.4375,0.7941377960109184,-0.1875,2.382413388032755
+ppo_none,kiter,2,0.0,0.0,-1.5,0.0
+ppo_predicted,rusher,2,0.0,0.0,-1.5,0.0
+ppo_predicted,camper,2,0.5,0.0,0.0,0.0
+ppo_predicted,kiter,2,0.0,0.0,-1.5,0.0
+ppo_oracle,rusher,2,0.0,0.0,-1.5,0.0
+ppo_oracle,camper,2,0.5,0.0,0.0,0.0
+ppo_oracle,kiter,2,0.0,0.0,-1.5,0.0

@@ -163,16 +163,16 @@ Conventions:
   - [x] Report the accuracy recovery curve after a style switch
   - [x] `eval_predictor.py`: mixer entropy ceiling (max weight 0.25), recovery curve, online vs frozen
   - [x] Commit
-- [ ] **M6 PPO NPC + eval harness**
-  - [ ] `ppo_npc.py` with 3 conditioning modes:
-    - [ ] `none` (plain PPO)
-    - [ ] `predicted` (GRU output appended to the observation)
-    - [ ] `oracle` (debug upper bound)
-  - [ ] `train_npc.py` vs the train-archetype pool, using `make_vec_env`
-  - [ ] `eval/metrics.py` and `eval/runner.py`
-  - [ ] Smoke run writes `results/.../metrics.csv`
+- [x] **M6 PPO NPC + eval harness**
+  - [x] `ppo_npc.py` with 3 conditioning modes:
+    - [x] `none` (plain PPO)
+    - [x] `predicted` (GRU output appended to the observation)
+    - [x] `oracle` (debug upper bound)
+  - [x] `train_npc.py` vs the train-archetype pool, using `make_vec_env`
+  - [x] `eval/metrics.py` and `eval/runner.py` (`scripts/eval_npc.py` is the CLI; PPO checkpoints are plain torch `.pt` because SB3's zip load fails with the installed torch 2.14)
+  - [x] Smoke run writes `results/.../metrics.csv`
   - [ ] Full runs (user): both PPO variants beat the scripted NPC vs the train archetypes
-  - [ ] Commit
+  - [x] Commit (code + smoke); full runs still pending
 
 ### Tier 2 — Core contribution
 - [ ] **M7 Env model Γ**

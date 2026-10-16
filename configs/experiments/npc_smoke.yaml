@@ -1,0 +1,40 @@
+# Smoke config for the PPO NPC pipeline (~1-2 min). Same keys as configs/npc_ppo.yaml.
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+predictor_config: configs/experiments/predictor_smoke.yaml
+predictor_checkpoint: models/predictor_smoke.pt
+
+ppo:
+  net_arch: [32, 32]
+  hparams:
+    learning_rate: 0.0003
+    n_steps: 64
+    batch_size: 128
+    n_epochs: 2
+    gamma: 0.99
+    gae_lambda: 0.95
+    clip_range: 0.2
+    ent_coef: 0.01
+    vf_coef: 0.5
+
+train:
+  modes: [none, predicted, oracle]
+  seeds: [0, 1]
+  total_timesteps: 4096
+  n_envs: 4
+  vec_env_type: dummy
+  opponents: [rusher, camper]
+  log_every: 1024
+  model_dir: models/npc_smoke
+  out_dir: results/npc/smoke/train
+
+eval:
+  out_dir: results/npc/smoke
+  methods: [scripted, random, ppo_none, ppo_predicted, ppo_oracle]
+  opponents: [rusher, camper, kiter]
+  seeds: [0, 1]
+  rounds: 4
+  env_seed_base: 10000
+  deterministic: true
+  predictor_online: true

@@ -22,6 +22,14 @@ class NPCEnv(gym.Env):
         self._init_seed = int(cfg.get("seed", 0)) if seed is None else int(seed)
         self._hist = []  # opponent-view history: (opp_action, npc_action)
         self._opp_obs = None
+        self._pending_opp = None
+
+    def peek_opp_action(self):
+        """The opponent's action for the coming step (computed once, then used by step()).
+        Lets oracle-conditioned NPCs see it; the opponent's RNG order is unchanged."""
+        if self._pending_opp is None:
+            self._pending_opp = int(self.opponent.act(self._opp_obs, self._hist))
+        return self._pending_opp
 
     def reset(self, *, seed=None, options=None):
         if seed is None and self._init_seed is not None:
@@ -33,12 +41,14 @@ class NPCEnv(gym.Env):
         self.game.reset()
         self.opponent.reset()
         self._hist = []
+        self._pending_opp = None
         self._opp_obs = encode(self.game, 1)
         return encode(self.game, 0), {}
 
     def step(self, action):
         g = self.game
-        a1 = int(self.opponent.act(self._opp_obs, self._hist))
+        a1 = self.peek_opp_action()
+        self._pending_opp = None
         a0 = int(action)
         reward, done = g.step(a0, a1)
         self._hist.append((a1, a0))
