@@ -8,3 +8,4 @@ pandas
 matplotlib
 tensorboard
 pyyaml
+pytest

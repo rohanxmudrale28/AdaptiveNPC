@@ -95,16 +95,16 @@ Conventions:
 ## Milestones
 
 ### Tier 0 — Setup
-- [ ] **M0 Bootstrap**
-  - [ ] Rename branch `master` → `main`
-  - [ ] Make the initial commit of the existing docs
+- [x] **M0 Bootstrap**
+  - [x] Rename branch `master` → `main`
+  - [x] Make the initial commit of the existing docs
   - [x] scipy checked with `pip show`: 1.17.1 is in system Python, but it was missing from `.venv` and requirements.txt, so it was added to requirements.txt
-  - [ ] Add `pytest` to requirements.txt
-  - [ ] Install deps in `.venv`
-  - [ ] `config.py` (YAML load + CLI overrides) and `seeding.py` (python/numpy/torch/gym)
-  - [ ] Package skeleton and pytest config
-  - [ ] Check: `python -c "import adaptive_npc"` works and `pytest` runs
-  - [ ] Commit
+  - [x] Add `pytest` to requirements.txt
+  - [x] Install deps in `.venv`
+  - [x] `config.py` (YAML load + CLI overrides) and `seeding.py` (python/numpy/torch/gym)
+  - [x] Package skeleton and pytest config
+  - [x] Check: `python -c "import adaptive_npc"` works and `pytest` runs
+  - [x] Commit
 
 ### Tier 1 — Playable game + baselines (MVP)
 - [ ] **M1 Env core**
