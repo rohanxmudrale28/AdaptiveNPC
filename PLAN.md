@@ -75,6 +75,7 @@ AdaptiveNPC/
       view.py                   # Pygame drawing of arena + HUD (reads core state only)
       demo_panel.py             # predicted next-action bars, belief weights α / player-type
       input.py                  # keyboard → Action
+      clock.py                  # fixed-timestep TickClock: game tick rate independent of render fps
   scripts/                      # thin CLI entry points: --config, --seed, --out
     benchmark_env.py  balance_matrix.py  collect_data.py  train_predictor.py  train_npc.py
     train_env_model.py  train_learners.py  check_learner_drift.py  run_experiment.py
@@ -143,7 +144,7 @@ Conventions:
   - [x] Log each tuning iteration (params → matrix) to `results/balance/log.md`
   - [x] Commit the final balanced config with its matrix (`env.yaml` is unchanged)
 - [x] **M4 Rendering + human play**
-  - [x] `render/view.py`, `render/input.py`
+  - [x] `render/view.py`, `render/input.py`, `render/clock.py`
   - [x] `scripts/play.py` (human vs random/scripted)
   - [x] Tick rate (game steps/s) is configurable through `render.yaml` and the `--tick-rate` CLI override
   - [x] Render fps is independent of the game tick rate
