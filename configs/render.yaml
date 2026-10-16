@@ -5,6 +5,7 @@ tick_rate: 8           # game steps per second (override with --tick-rate)
 fps: 60                # render frames per second
 tile_size: 64          # px per grid tile
 hud_height: 72         # px, top strip for HP / stamina / score
+hint: "tip: avoid walls, you get pinned"
 max_catchup_steps: 4   # if rendering stalls, run at most this many game steps per frame
 
 play:

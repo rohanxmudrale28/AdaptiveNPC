@@ -15,6 +15,8 @@ class ArenaView:
         self.screen = pygame.display.set_mode((self.w, self.h))
         pygame.display.set_caption(title)
         self.font = pygame.font.SysFont("consolas,dejavusansmono,arial", max(14, self.tile // 4))
+        self.hint_font = pygame.font.SysFont("consolas,dejavusansmono,arial", 12)
+        self.hint = cfg.get("hint", "")
         self.big = pygame.font.SysFont("consolas,dejavusansmono,arial", max(24, self.tile // 2), bold=True)
 
     # -------------------------------------------------------------- primitives
@@ -65,6 +67,8 @@ class ArenaView:
             self._bar(x0, 46, bw, 8, g.sta[i] / g.sta_max, self.c["stamina"])
         self._text(f"R{round_idx + 1}  t={g.t}/{g.max_steps}  opp-you-draw {score[0]}-{score[1]}-{score[2]}",
                    (8, self.hud_h - 18))
+        hint = self.hint_font.render(self.hint, True, self.c["grid"])
+        self.screen.blit(hint, (self.w - hint.get_width() - 8, self.hud_h - 16))
 
     def draw(self, g, score=(0, 0, 0), round_idx=0, names=("NPC", "YOU"), banner=None):
         """Render one frame. `score` = (opponent wins, human wins, draws)."""
