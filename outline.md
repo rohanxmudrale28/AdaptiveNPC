@@ -26,10 +26,10 @@ fixed, naive-learner and reasoning-learner opponents.
 
 ## Players (opponents)
 - Fixed-policy scripted archetypes: aggressive rusher, camper, fixed-pattern repeater,
-  random mixer, style switcher (changes behaviour mid-match)
+  random mixer, flanker (attacks from the side), style switcher (changes behaviour mid-match)
 - Naive learner: player that updates its policy with PPO during play
 - Reasoning learner: player that models the NPC and conditions its policy on that prediction
-- Held-out archetypes used only for testing generalization
+- Held-out archetypes (kiter, counter-puncher) used only for testing generalization
 
 ## Components
 1. Player model: GRU predicting the player's next action from recent action/state history
