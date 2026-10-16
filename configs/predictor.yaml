@@ -44,3 +44,12 @@ eval:
     bin_steps: 25
     horizon_steps: 400
     pre_rounds: 3                    # rounds before a switch used as the pre-switch reference
+
+sweep:                               # scripts.sweep_online: each entry overrides the 'online' block
+  - {name: current,        lr: 0.001,  every: 25, grad_steps: 3, buffer: 256, min_buffer: 32}
+  - {name: lr3e-4,         lr: 0.0003, every: 25, grad_steps: 3, buffer: 256, min_buffer: 32}
+  - {name: grad1,          lr: 0.001,  every: 25, grad_steps: 1, buffer: 256, min_buffer: 32}
+  - {name: buf64,          lr: 0.001,  every: 25, grad_steps: 3, buffer: 64,  min_buffer: 32}
+  - {name: buf64_lr3e-4,   lr: 0.0003, every: 25, grad_steps: 3, buffer: 64,  min_buffer: 32}
+  - {name: buf64_lr3e-4_g1, lr: 0.0003, every: 25, grad_steps: 1, buffer: 64, min_buffer: 32}
+  - {name: every50_lr3e-4, lr: 0.0003, every: 50, grad_steps: 3, buffer: 128, min_buffer: 32}

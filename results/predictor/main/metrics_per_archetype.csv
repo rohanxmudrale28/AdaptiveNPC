@@ -1,0 +1,65 @@
+npc,archetype,heldout,model,top1_acc,kl_nll,kl_to_true,ceiling_acc,entropy_nats,ceiling_note,steps
+scripted_npc,rusher,False,gru_frozen,0.9135834411384217,0.4180111587047577,nan,0.9562499999999999,nan,upper bound (noise only),3865
+scripted_npc,rusher,False,gru_online,0.9208279430789134,0.43554288148880005,nan,0.9562499999999999,nan,upper bound (noise only),3865
+scripted_npc,rusher,False,majority,0.3482535575679172,1.560053617036671,nan,0.9562499999999999,nan,upper bound (noise only),3865
+scripted_npc,rusher,False,repeat_last,0.48434670116429496,2.2400976267982418,nan,0.9562499999999999,nan,upper bound (noise only),3865
+scripted_npc,camper,False,gru_frozen,0.7346743295019157,0.7711187601089478,nan,0.9562499999999999,nan,upper bound (noise only),3132
+scripted_npc,camper,False,gru_online,0.7372286079182631,0.7546476125717163,nan,0.9562499999999999,nan,upper bound (noise only),3132
+scripted_npc,camper,False,majority,0.5520434227330779,1.2455501230418025,nan,0.9562499999999999,nan,upper bound (noise only),3132
+scripted_npc,camper,False,repeat_last,0.44859514687100893,2.391795602132568,nan,0.9562499999999999,nan,upper bound (noise only),3132
+scripted_npc,repeater,False,gru_frozen,0.9639308060360692,0.11930971592664719,nan,1.0,nan,upper bound (noise only),2717
+scripted_npc,repeater,False,gru_online,0.9679793890320206,0.09471053630113602,nan,1.0,nan,upper bound (noise only),2717
+scripted_npc,repeater,False,majority,0.229297018770703,2.034481577922876,nan,1.0,nan,upper bound (noise only),2717
+scripted_npc,repeater,False,repeat_last,0.20169304379830696,3.4104582476835055,nan,1.0,nan,upper bound (noise only),2717
+scripted_npc,mixer,False,gru_frozen,0.21654719235364397,2.118966579437256,0.1435396893663336,0.25,1.969540332941515,exact (i.i.d. mixer),3348
+scripted_npc,mixer,False,gru_online,0.21535244922341695,2.108938217163086,0.1440661028237926,0.25,1.969540332941515,exact (i.i.d. mixer),3348
+scripted_npc,mixer,False,majority,0.22849462365591397,1.9847740666705476,0.013539388475894684,0.25,1.969540332941515,exact (i.i.d. mixer),3348
+scripted_npc,mixer,False,repeat_last,0.1502389486260454,3.6240908442882365,1.6378443257116282,0.25,1.969540332941515,exact (i.i.d. mixer),3348
+scripted_npc,flanker,False,gru_frozen,0.9113499930196844,0.40683862566947937,nan,0.9562499999999999,nan,upper bound (noise only),7163
+scripted_npc,flanker,False,gru_online,0.9021359765461399,0.45066770911216736,nan,0.9562499999999999,nan,upper bound (noise only),7163
+scripted_npc,flanker,False,majority,0.30015356694122575,1.613515505954094,nan,0.9562499999999999,nan,upper bound (noise only),7163
+scripted_npc,flanker,False,repeat_last,0.26343710735725256,3.1561308553249,nan,0.9562499999999999,nan,upper bound (noise only),7163
+scripted_npc,switcher,False,gru_frozen,0.8766707168894289,0.4350510239601135,nan,1.0,nan,upper bound (noise only),3292
+scripted_npc,switcher,False,gru_online,0.8502430133657352,0.5045968294143677,nan,1.0,nan,upper bound (noise only),3292
+scripted_npc,switcher,False,majority,0.2542527339003645,1.9293654159558769,nan,1.0,nan,upper bound (noise only),3292
+scripted_npc,switcher,False,repeat_last,0.4422843256379101,2.4140746399094724,nan,1.0,nan,upper bound (noise only),3292
+scripted_npc,kiter,True,gru_frozen,0.8567519858781995,0.6864179968833923,nan,0.9562499999999999,nan,upper bound (noise only),11330
+scripted_npc,kiter,True,gru_online,0.8902030008826125,0.5097552537918091,nan,0.9562499999999999,nan,upper bound (noise only),11330
+scripted_npc,kiter,True,majority,0.3533980582524272,1.5077308982775584,nan,0.9562499999999999,nan,upper bound (noise only),11330
+scripted_npc,kiter,True,repeat_last,0.4120035304501324,2.5409343614401965,nan,0.9562499999999999,nan,upper bound (noise only),11330
+scripted_npc,counter_puncher,True,gru_frozen,0.46774193548387094,1.679780125617981,nan,0.8250000000000001,nan,upper bound (noise only),2108
+scripted_npc,counter_puncher,True,gru_online,0.6124288425047438,1.3334516286849976,nan,0.8250000000000001,nan,upper bound (noise only),2108
+scripted_npc,counter_puncher,True,majority,0.4435483870967742,1.6294655868247567,nan,0.8250000000000001,nan,upper bound (noise only),2108
+scripted_npc,counter_puncher,True,repeat_last,0.19734345351043645,3.4277872750466107,nan,0.8250000000000001,nan,upper bound (noise only),2108
+random,rusher,False,gru_frozen,0.8429656919180291,0.5928550362586975,nan,0.9562499999999999,nan,upper bound (noise only),4343
+random,rusher,False,gru_online,0.855169237854018,0.5715964436531067,nan,0.9562499999999999,nan,upper bound (noise only),4343
+random,rusher,False,majority,0.35275155422518994,1.6254571824709876,nan,0.9562499999999999,nan,upper bound (noise only),4343
+random,rusher,False,repeat_last,0.4186046511627907,2.5126610538107466,nan,0.9562499999999999,nan,upper bound (noise only),4343
+random,camper,False,gru_frozen,0.8965958728724206,0.42813462018966675,nan,0.9562499999999999,nan,upper bound (noise only),13278
+random,camper,False,gru_online,0.8876336797710499,0.4943014681339264,nan,0.9562499999999999,nan,upper bound (noise only),13278
+random,camper,False,majority,0.8605211628257268,0.598510904254058,nan,0.9562499999999999,nan,upper bound (noise only),13278
+random,camper,False,repeat_last,0.8425967766229854,0.7579491761277091,nan,0.9562499999999999,nan,upper bound (noise only),13278
+random,repeater,False,gru_frozen,0.9774074074074074,0.06667952239513397,nan,1.0,nan,upper bound (noise only),13500
+random,repeater,False,gru_online,0.9707407407407408,0.0853804275393486,nan,1.0,nan,upper bound (noise only),13500
+random,repeater,False,majority,0.2528148148148148,2.004526608081733,nan,1.0,nan,upper bound (noise only),13500
+random,repeater,False,repeat_last,0.242,3.245374093178268,nan,1.0,nan,upper bound (noise only),13500
+random,mixer,False,gru_frozen,0.23503703703703704,2.0504724979400635,0.08174622293167116,0.25,1.969540332941515,exact (i.i.d. mixer),13500
+random,mixer,False,gru_online,0.2094074074074074,2.125082492828369,0.1566947494997361,0.25,1.969540332941515,exact (i.i.d. mixer),13500
+random,mixer,False,majority,0.24703703703703703,1.9730585970813843,0.0043946723353743625,0.25,1.969540332941515,exact (i.i.d. mixer),13500
+random,mixer,False,repeat_last,0.15081481481481482,3.6231665376350133,1.6359181429183922,0.25,1.969540332941515,exact (i.i.d. mixer),13500
+random,flanker,False,gru_frozen,0.7236212942301562,0.8767890930175781,nan,0.9562499999999999,nan,upper bound (noise only),6274
+random,flanker,False,gru_online,0.7355753905004782,0.8702763915061951,nan,0.9562499999999999,nan,upper bound (noise only),6274
+random,flanker,False,majority,0.22696844118584636,1.9281977348580208,nan,0.9562499999999999,nan,upper bound (noise only),6274
+random,flanker,False,repeat_last,0.2802040165763468,3.0865345807535913,nan,0.9562499999999999,nan,upper bound (noise only),6274
+random,switcher,False,gru_frozen,0.9206546707503829,0.29467642307281494,nan,1.0,nan,upper bound (noise only),10448
+random,switcher,False,gru_online,0.9094563552833078,0.34142616391181946,nan,1.0,nan,upper bound (noise only),10448
+random,switcher,False,majority,0.4195061255742726,1.7664421546748026,nan,1.0,nan,upper bound (noise only),10448
+random,switcher,False,repeat_last,0.521343797856049,2.087874494048136,nan,1.0,nan,upper bound (noise only),10448
+random,kiter,True,gru_frozen,0.548586972948466,2.2256953716278076,nan,0.9562499999999999,nan,upper bound (noise only),6617
+random,kiter,True,gru_online,0.6477255553876379,1.1868339776992798,nan,0.9562499999999999,nan,upper bound (noise only),6617
+random,kiter,True,majority,0.2351518815173039,1.6755440805896604,nan,0.9562499999999999,nan,upper bound (noise only),6617
+random,kiter,True,repeat_last,0.3519721928366329,2.7892431694358315,nan,0.9562499999999999,nan,upper bound (noise only),6617
+random,counter_puncher,True,gru_frozen,0.3882426418924194,1.9031943082809448,nan,0.8250000000000001,nan,upper bound (noise only),12809
+random,counter_puncher,True,gru_online,0.5590600359122492,1.4646363258361816,nan,0.8250000000000001,nan,upper bound (noise only),12809
+random,counter_puncher,True,majority,0.4663127488484659,1.6968667919204057,nan,0.8250000000000001,nan,upper bound (noise only),12809
+random,counter_puncher,True,repeat_last,0.29003044734171285,3.0463515091380318,nan,0.8250000000000001,nan,upper bound (noise only),12809

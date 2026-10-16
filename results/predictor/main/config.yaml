@@ -1,0 +1,50 @@
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+data:
+  dir: data/predictor
+  npcs:
+  - scripted_npc
+  - random
+  archetypes: null
+  rounds_per_archetype: 200
+  val_rounds_per_archetype: 40
+  train_seed_base: 1000
+  val_seed_base: 5000
+model:
+  hidden: 64
+  layers: 1
+  window: 8
+train:
+  lr: 0.001
+  batch_size: 256
+  epochs: 20
+  checkpoint: models/predictor.pt
+online:
+  lr: 0.001
+  every: 25
+  grad_steps: 3
+  buffer: 256
+  min_buffer: 32
+eval:
+  out_dir: results/predictor/main
+  npcs:
+  - scripted_npc
+  - random
+  players: null
+  seeds:
+  - 100
+  - 101
+  - 102
+  match_rounds: 30
+  repeat_last_eps: 0.1
+  switch:
+    npc: scripted_npc
+    match_rounds: 80
+    seeds:
+    - 200
+    - 201
+    - 202
+    bin_steps: 25
+    horizon_steps: 400
+    pre_rounds: 3

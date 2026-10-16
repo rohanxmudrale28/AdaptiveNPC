@@ -44,3 +44,7 @@ eval:
     bin_steps: 25
     horizon_steps: 150
     pre_rounds: 2
+
+sweep:
+  - {name: current,      lr: 0.001,  every: 25, grad_steps: 3, buffer: 128, min_buffer: 32}
+  - {name: buf64_lr3e-4, lr: 0.0003, every: 25, grad_steps: 3, buffer: 64,  min_buffer: 32}
