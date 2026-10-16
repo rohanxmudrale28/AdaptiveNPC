@@ -1,0 +1,33 @@
+seed: 0
+arena_size: 9
+max_steps: 150
+random_start: true
+hp: 5
+stamina:
+  max: 6
+  regen_every: 2
+attack:
+  damage: 1
+  cooldown: 2
+block:
+  stamina_cost: 1
+  parry_stun: 2
+dodge:
+  stamina_cost: 3
+  distance: 2
+reward:
+  win: 1.0
+  loss: -1.0
+  draw: 0.0
+  damage_dealt: 0.1
+  damage_taken: -0.1
+vec:
+  n_envs: 8
+  vec_env_type: dummy
+benchmark:
+  total_steps: 20000
+  n_envs:
+  - 1
+  - 4
+  - 8
+  out: results/benchmarks/env_speed.csv

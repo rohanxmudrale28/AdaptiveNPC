@@ -107,20 +107,20 @@ Conventions:
   - [x] Commit
 
 ### Tier 1 — Playable game + baselines (MVP)
-- [ ] **M1 Env core**
-  - [ ] `actions.py`, `core.py`, `observations.py`, `gym_env.py` (NPCEnv embeds any Player), `match.py`
-  - [ ] `vec_env.py`: `make_vec_env()` builds DummyVecEnv or SubprocVecEnv from config (`n_envs`, `vec_env_type`). Each sub-env gets a distinct, reproducible seed (`base_seed + i`).
-  - [ ] Tests for each rule: hit, block/parry, dodge i-frames, stamina, cooldown, timeout
-  - [ ] Test: identical trajectories with the same seed
-  - [ ] Test: vectorized results are reproducible, and sub-envs differ from each other
-  - [ ] Test: gymnasium `check_env` passes
-  - [ ] `benchmark_env.py`: steps/s for random vs random in three setups:
-    - [ ] raw core
-    - [ ] single gym env
-    - [ ] vectorized: Dummy and Subproc with `n_envs` ∈ {1, 4, 8}
-  - [ ] Save benchmark results to `results/benchmarks/env_speed.csv`
-  - [ ] Target: at least 10k steps/s for a single headless env
-  - [ ] Commit
+- [x] **M1 Env core**
+  - [x] `actions.py`, `core.py`, `observations.py`, `gym_env.py` (NPCEnv embeds any Player), `match.py`
+  - [x] `vec_env.py`: `make_vec_env()` builds DummyVecEnv or SubprocVecEnv from config (`n_envs`, `vec_env_type`). Each sub-env gets a distinct, reproducible seed (`base_seed + i`).
+  - [x] Tests for each rule: hit, block/parry, dodge i-frames, stamina, cooldown, timeout
+  - [x] Test: identical trajectories with the same seed
+  - [x] Test: vectorized results are reproducible, and sub-envs differ from each other
+  - [x] Test: gymnasium `check_env` passes
+  - [x] `benchmark_env.py`: steps/s for random vs random in three setups:
+    - [x] raw core
+    - [x] single gym env
+    - [x] vectorized: Dummy and Subproc with `n_envs` ∈ {1, 4, 8}
+  - [x] Save benchmark results to `results/benchmarks/env_speed.csv`
+  - [x] Target: at least 10k steps/s for a single headless env
+  - [x] Commit
 - [ ] **M2 Scripted players**
   - [ ] Train archetypes: rusher, camper, pattern repeater, random mixer, switcher
   - [ ] Held-out archetypes: kiter, counter-puncher

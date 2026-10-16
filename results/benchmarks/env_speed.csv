@@ -1,0 +1,9 @@
+setup,vec_env_type,n_envs,steps_per_sec
+core,-,1,406918
+single_gym,-,1,121932
+vec,dummy,1,47704
+vec,dummy,4,69232
+vec,dummy,8,82472
+vec,subproc,1,7827
+vec,subproc,4,19544
+vec,subproc,8,27851
