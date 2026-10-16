@@ -3,6 +3,7 @@ gymnasium
 pygame
 stable-baselines3
 numpy
+scipy
 pandas
 matplotlib
 tensorboard
