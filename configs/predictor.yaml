@@ -23,8 +23,8 @@ train:
   epochs: 20
   checkpoint: models/predictor.pt    # gitignored (*.pt)
 
-online:                              # finetuning during a match (eval + later MBOM IOPs)
-  lr: 0.001
+online:                              # finetuning during a match (eval + later MBOM IOPs); lr chosen by sweep_online (results/predictor/main/online_sweep.csv)
+  lr: 0.0003
   every: 25                          # env steps between finetune bursts
   grad_steps: 3
   buffer: 256                        # most recent (window, action) pairs used
