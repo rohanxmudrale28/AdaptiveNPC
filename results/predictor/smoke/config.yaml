@@ -1,0 +1,51 @@
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+data:
+  dir: data/predictor_smoke
+  npcs:
+  - scripted_npc
+  - random
+  archetypes:
+  - rusher
+  - mixer
+  rounds_per_archetype: 20
+  val_rounds_per_archetype: 6
+  train_seed_base: 1000
+  val_seed_base: 5000
+model:
+  hidden: 32
+  layers: 1
+  window: 8
+train:
+  lr: 0.002
+  batch_size: 128
+  epochs: 3
+  checkpoint: models/predictor_smoke.pt
+online:
+  lr: 0.001
+  every: 25
+  grad_steps: 3
+  buffer: 128
+  min_buffer: 32
+eval:
+  out_dir: results/predictor/smoke
+  npcs:
+  - scripted_npc
+  - random
+  players:
+  - rusher
+  - mixer
+  - kiter
+  seeds:
+  - 100
+  match_rounds: 6
+  repeat_last_eps: 0.1
+  switch:
+    npc: scripted_npc
+    match_rounds: 22
+    seeds:
+    - 200
+    bin_steps: 25
+    horizon_steps: 150
+    pre_rounds: 2

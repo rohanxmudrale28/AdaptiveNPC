@@ -105,6 +105,7 @@ Conventions:
   - [x] `config.py` (YAML load + CLI overrides) and `seeding.py` (python/numpy/torch/gym)
   - [x] Package skeleton and pytest config
   - [x] Check: `python -c "import adaptive_npc"` works and `pytest` runs
+  - [x] `eval_predictor.py`: mixer entropy ceiling (max weight 0.25), recovery curve, online vs frozen
   - [x] Commit
 
 ### Tier 1 — Playable game + baselines (MVP)
@@ -121,6 +122,7 @@ Conventions:
     - [x] vectorized: Dummy and Subproc with `n_envs` ∈ {1, 4, 8}
   - [x] Save benchmark results to `results/benchmarks/env_speed.csv`
   - [x] Target: at least 10k steps/s for a single headless env
+  - [x] `eval_predictor.py`: mixer entropy ceiling (max weight 0.25), recovery curve, online vs frozen
   - [x] Commit
 - [x] **M2 Scripted players**
   - [x] Train archetypes: rusher, camper, pattern repeater, random mixer, switcher (flanker added in M3)
@@ -130,6 +132,7 @@ Conventions:
   - [x] Test: each archetype's action histogram differs from the others
   - [x] Test: the switcher switches on schedule
   - [x] Test: the scripted NPC beats random by more than 80%
+  - [x] `eval_predictor.py`: mixer entropy ceiling (max weight 0.25), recovery curve, online vs frozen
   - [x] Commit
 - [x] **M3 Game balance**
   - [x] `balance_matrix.py`: round-robin over all archetypes (train + held-out + scripted NPC + random)
@@ -150,14 +153,16 @@ Conventions:
   - [x] Render fps is independent of the game tick rate
   - [x] Render reads state only. The core stays pygame-free.
   - [x] Check: a round can be played by keyboard at the default and at a changed tick rate
+  - [x] `eval_predictor.py`: mixer entropy ceiling (max weight 0.25), recovery curve, online vs frozen
   - [x] Commit
-- [ ] **M5 Player predictor (GRU)**
-  - [ ] `collect_data.py`: windowed (state, npc action, player action) histories vs the train archetypes
-  - [ ] `train_predictor.py`: offline training
-  - [ ] Online finetuning during a match
-  - [ ] Report top-1 accuracy and KL per archetype, compared with majority-action and last-action baselines
-  - [ ] Report the accuracy recovery curve after a style switch
-  - [ ] Commit
+- [x] **M5 Player predictor (GRU)**
+  - [x] `collect_data.py`: windowed (state, npc action, player action) histories vs the train archetypes, with both the scripted and a random NPC
+  - [x] `train_predictor.py`: offline training
+  - [x] Online finetuning during a match
+  - [x] Report top-1 accuracy and KL per archetype, compared with majority-action and last-action baselines
+  - [x] Report the accuracy recovery curve after a style switch
+  - [x] `eval_predictor.py`: mixer entropy ceiling (max weight 0.25), recovery curve, online vs frozen
+  - [x] Commit
 - [ ] **M6 PPO NPC + eval harness**
   - [ ] `ppo_npc.py` with 3 conditioning modes:
     - [ ] `none` (plain PPO)

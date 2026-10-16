@@ -1,0 +1,25 @@
+npc,archetype,heldout,model,top1_acc,kl_nll,kl_to_true,ceiling_acc,entropy_nats,ceiling_note,steps
+scripted_npc,rusher,False,gru_frozen,0.6109215017064846,1.0905154943466187,nan,0.9562499999999999,nan,upper bound (noise only),293
+scripted_npc,rusher,False,gru_online,0.6075085324232082,1.0672492980957031,nan,0.9562499999999999,nan,upper bound (noise only),293
+scripted_npc,rusher,False,majority,0.27303754266211605,1.5927887604762958,nan,0.9562499999999999,nan,upper bound (noise only),293
+scripted_npc,rusher,False,repeat_last,0.5085324232081911,2.134173638744825,nan,0.9562499999999999,nan,upper bound (noise only),293
+scripted_npc,mixer,False,gru_frozen,0.23834196891191708,2.0308756828308105,0.06591013869502989,0.25,1.969540332941515,exact (i.i.d. mixer),193
+scripted_npc,mixer,False,gru_online,0.24870466321243523,2.0079526901245117,0.05135535786527413,0.25,1.969540332941515,exact (i.i.d. mixer),193
+scripted_npc,mixer,False,majority,0.26424870466321243,2.022942854987516,0.03146912513221618,0.25,1.969540332941515,exact (i.i.d. mixer),193
+scripted_npc,mixer,False,repeat_last,0.15544041450777202,3.5932454529021625,1.6290718738952354,0.25,1.969540332941515,exact (i.i.d. mixer),193
+scripted_npc,kiter,True,gru_frozen,0.5791044776119403,1.2545781135559082,nan,0.9562499999999999,nan,upper bound (noise only),670
+scripted_npc,kiter,True,gru_online,0.7791044776119403,0.9609648585319519,nan,0.9562499999999999,nan,upper bound (noise only),670
+scripted_npc,kiter,True,majority,0.4388059701492537,1.4628901902831268,nan,0.9562499999999999,nan,upper bound (noise only),670
+scripted_npc,kiter,True,repeat_last,0.6985074626865672,1.3512471052858404,nan,0.9562499999999999,nan,upper bound (noise only),670
+random,rusher,False,gru_frozen,0.4781021897810219,1.513421893119812,nan,0.9562499999999999,nan,upper bound (noise only),274
+random,rusher,False,gru_online,0.5,1.3965169191360474,nan,0.9562499999999999,nan,upper bound (noise only),274
+random,rusher,False,majority,0.2773722627737226,1.6418357481783534,nan,0.9562499999999999,nan,upper bound (noise only),274
+random,rusher,False,repeat_last,0.4562043795620438,2.3504623969100757,nan,0.9562499999999999,nan,upper bound (noise only),274
+random,mixer,False,gru_frozen,0.22666666666666666,2.0252468585968018,0.042242275365555235,0.25,1.969540332941515,exact (i.i.d. mixer),900
+random,mixer,False,gru_online,0.23222222222222222,2.0198421478271484,0.04452225667406846,0.25,1.969540332941515,exact (i.i.d. mixer),900
+random,mixer,False,majority,0.2222222222222222,2.006601427279306,0.011288029702310286,0.25,1.969540332941515,exact (i.i.d. mixer),900
+random,mixer,False,repeat_last,0.14777777777777779,3.6338213419737677,1.6467877764294614,0.25,1.969540332941515,exact (i.i.d. mixer),900
+random,kiter,True,gru_frozen,0.24203821656050956,1.9411976337432861,nan,0.9562499999999999,nan,upper bound (noise only),471
+random,kiter,True,gru_online,0.33970276008492567,1.6869111061096191,nan,0.9562499999999999,nan,upper bound (noise only),471
+random,kiter,True,majority,0.22717622080679406,1.7090581099956912,nan,0.9562499999999999,nan,upper bound (noise only),471
+random,kiter,True,repeat_last,0.40976645435244163,2.5461719893565533,nan,0.9562499999999999,nan,upper bound (noise only),471

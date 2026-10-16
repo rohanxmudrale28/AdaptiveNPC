@@ -7,3 +7,5 @@ logs/
 *.pt
 *.zip
 .vscode/
+
+data/
