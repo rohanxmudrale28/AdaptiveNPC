@@ -142,14 +142,14 @@ Conventions:
   - [x] If an archetype dominates, adjust the params and re-run until the checks pass. `counter_puncher` dominated, and `scripts/diagnose_counter_puncher.py` showed the rules allow a counter (flanking beats block). The fix was therefore in the players, not in `configs/env.yaml`: `flanker` added as a train archetype, and `counter_puncher` softened to `reaction_delay: 1`, `noise: 0.2` (in `players.yaml`).
   - [x] Log each tuning iteration (params → matrix) to `results/balance/log.md`
   - [x] Commit the final balanced config with its matrix (`env.yaml` is unchanged)
-- [ ] **M4 Rendering + human play**
-  - [ ] `render/view.py`, `render/input.py`
-  - [ ] `scripts/play.py` (human vs random/scripted)
-  - [ ] Tick rate (game steps/s) is configurable through `render.yaml` and the `--tick-rate` CLI override
-  - [ ] Render fps is independent of the game tick rate
-  - [ ] Render reads state only. The core stays pygame-free.
-  - [ ] Check: a round can be played by keyboard at the default and at a changed tick rate
-  - [ ] Commit
+- [x] **M4 Rendering + human play**
+  - [x] `render/view.py`, `render/input.py`
+  - [x] `scripts/play.py` (human vs random/scripted)
+  - [x] Tick rate (game steps/s) is configurable through `render.yaml` and the `--tick-rate` CLI override
+  - [x] Render fps is independent of the game tick rate
+  - [x] Render reads state only. The core stays pygame-free.
+  - [x] Check: a round can be played by keyboard at the default and at a changed tick rate
+  - [x] Commit
 - [ ] **M5 Player predictor (GRU)**
   - [ ] `collect_data.py`: windowed (state, npc action, player action) histories vs the train archetypes
   - [ ] `train_predictor.py`: offline training
