@@ -144,7 +144,20 @@ class Kiter(Scripted):
 
 
 class CounterPuncher(Scripted):
-    """Stalks to striking range, then blocks; punishes right after the opponent attacks (or is stunned)."""
+    """Stalks to striking range, then blocks; punishes after the opponent attacks (or is stunned),
+    reacting `reaction_delay` steps late."""
+
+    def __init__(self, params, arena_size, seed=None):
+        super().__init__(params, arena_size, seed)
+        self.delay = int(params.get("reaction_delay", 0))
+        self._trig = []
+
+    def reset(self):
+        self._trig = []
+
+    def act(self, obs, hist):
+        self._trig.append(bool(obs[17] > 0 or obs[19] > 0))  # opp on cooldown or stunned
+        return super().act(obs, hist)
 
     def policy(self, v, hist):
         if v.dist > 2:
@@ -153,9 +166,39 @@ class CounterPuncher(Scripted):
             return BLOCK if v.has_stamina else IDLE
         if not v.facing_opp:
             return v.toward()
-        if (v.opp_cd or v.opp_stunned) and v.can_attack:
+        punish = len(self._trig) > self.delay and self._trig[-1 - self.delay]
+        if punish and v.can_attack:
             return ATTACK
         return BLOCK if v.has_stamina else IDLE
+
+
+class Flanker(Scripted):
+    """Walks to a tile two steps to the side of the opponent, steps in facing it, attacks from the
+    side where a frontal block does not protect."""
+
+    def policy(self, v, hist):
+        if v.adjacent:
+            if v.facing_opp and v.can_attack and not v.opp_facing_us:
+                return ATTACK
+            if v.opp_facing_us:
+                return BLOCK if v.has_stamina else IDLE
+            return v.toward() if not v.facing_opp else IDLE
+        fx, fy = DIRS[v.opp_face]
+        best = None
+        for sgn in (1, -1):
+            px, py = -fy * sgn, fx * sgn          # perpendicular to the opponent's facing
+            rel = (v.dx + 2 * px, v.dy + 2 * py)  # stage tile relative to us
+            if 0 <= v.x + rel[0] <= v.span and 0 <= v.y + rel[1] <= v.span:
+                cand = (abs(rel[0]) + abs(rel[1]), rel, (px, py))
+                best = cand if best is None or cand < best else best
+        if best is None:
+            return v.toward()
+        _, rel, (px, py) = best
+        if rel == (0, 0):                          # on the stage tile: step in facing the opponent
+            return MOVE_OF_FACING[DIRS.index((-px, -py))]
+        if abs(rel[0]) >= abs(rel[1]):
+            return int(Action.RIGHT) if rel[0] > 0 else int(Action.LEFT)
+        return int(Action.DOWN) if rel[1] > 0 else int(Action.UP)
 
 
 class ScriptedNPC(Scripted):
@@ -203,7 +246,7 @@ class Switcher(Player):
 
 
 ARCHETYPES = {"rusher": Rusher, "camper": Camper, "repeater": Repeater, "mixer": Mixer,
-              "kiter": Kiter, "counter_puncher": CounterPuncher, "scripted_npc": ScriptedNPC}
+              "flanker": Flanker, "kiter": Kiter, "counter_puncher": CounterPuncher, "scripted_npc": ScriptedNPC}
 
 
 def make_player(name, players_cfg, env_cfg, seed=None):

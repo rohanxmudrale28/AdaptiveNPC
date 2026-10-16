@@ -10,7 +10,7 @@ from adaptive_npc.npc.scripted_npc import make_scripted_npc
 from adaptive_npc.players.base import RandomPlayer
 from adaptive_npc.players.scripted import make_player
 
-ARCHETYPES = ["rusher", "camper", "repeater", "mixer", "switcher", "kiter", "counter_puncher"]
+ARCHETYPES = ["rusher", "camper", "repeater", "mixer", "switcher", "flanker", "kiter", "counter_puncher"]
 
 
 @pytest.fixture(scope="module")

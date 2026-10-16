@@ -1,0 +1,20 @@
+# Game-balance round-robin and the pass/fail thresholds for the checks.
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+
+seeds: [0, 1, 2]
+rounds_per_pair: 200        # rounds per seed per side assignment
+workers: 8                  # parallel processes
+
+# train + held-out archetypes come from players.yaml; these are added on top.
+extra_players: [scripted_npc, random]
+non_random_exclude: [random]   # exempt from the win/lose/counter checks (and as a counter)
+
+dominance_threshold: 0.65     # dominant = wins >= this vs EVERY other archetype
+mirror_tolerance: [0.45, 0.55]
+draw_flag_threshold: 0.50     # flag pairs whose draw rate is above this
+counter_threshold: 0.60       # each non-random archetype needs a counter winning >= this
+win_margin: 0.0               # "wins" a matchup if win rate > 0.5 + margin (loses if < 0.5 - margin)
+
+out: results/balance

@@ -1,0 +1,114 @@
+balance:
+  seed: 0
+  env_config: configs/env.yaml
+  players_config: configs/players.yaml
+  seeds:
+  - 0
+  - 1
+  - 2
+  rounds_per_pair: 200
+  workers: 8
+  extra_players:
+  - scripted_npc
+  - random
+  non_random_exclude:
+  - random
+  dominance_threshold: 0.65
+  mirror_tolerance:
+  - 0.45
+  - 0.55
+  draw_flag_threshold: 0.5
+  counter_threshold: 0.6
+  win_margin: 0.0
+  out: results/balance
+env:
+  seed: 0
+  arena_size: 9
+  max_steps: 150
+  random_start: true
+  hp: 5
+  stamina:
+    max: 6
+    regen_every: 2
+  attack:
+    damage: 1
+    cooldown: 2
+  block:
+    stamina_cost: 1
+    parry_stun: 2
+  dodge:
+    stamina_cost: 3
+    distance: 2
+  reward:
+    win: 1.0
+    loss: -1.0
+    draw: 0.0
+    damage_dealt: 0.1
+    damage_taken: -0.1
+  vec:
+    n_envs: 8
+    vec_env_type: dummy
+  benchmark:
+    total_steps: 20000
+    n_envs:
+    - 1
+    - 4
+    - 8
+    out: results/benchmarks/env_speed.csv
+players:
+  seed: 0
+  train:
+  - rusher
+  - camper
+  - repeater
+  - mixer
+  - flanker
+  - switcher
+  heldout:
+  - kiter
+  - counter_puncher
+  rusher:
+    noise: 0.05
+  camper:
+    noise: 0.05
+    block_radius: 2
+    poke_prob: 0.3
+  repeater:
+    noise: 0.0
+    pattern:
+    - toward
+    - toward
+    - attack
+    - idle
+    - block
+    - block
+    - away
+    - dodge
+  mixer:
+    noise: 0.0
+    weights:
+      idle: 0.1
+      up: 0.1
+      down: 0.1
+      left: 0.1
+      right: 0.1
+      attack: 0.25
+      block: 0.2
+      dodge: 0.05
+  switcher:
+    cycle:
+    - rusher
+    - camper
+    - repeater
+    - mixer
+    switch_every_rounds: 10
+    switch_at_step: null
+  kiter:
+    noise: 0.05
+  flanker:
+    noise: 0.05
+  counter_puncher:
+    noise: 0.2
+    reaction_delay: 1
+  scripted_npc:
+    noise: 0.0

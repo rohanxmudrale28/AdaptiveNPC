@@ -1,0 +1,25 @@
+counter_puncher diagnosis: 60 rounds/side/seed, seeds [0, 1], both sides pooled
+win%/draw%/loss% are counter_puncher's; parries are per round; damage is per round.
+
+vs rusher          win 99.6% draw  0.0% loss  0.4% | CP parries  5.00/rd, CP attacks parried  0.00/rd | dmg dealt 5.00 taken 1.38
+vs camper          win 19.6% draw 15.0% loss 65.4% | CP parries  3.44/rd, CP attacks parried  2.63/rd | dmg dealt 2.78 taken 3.77
+vs repeater        win 26.7% draw 27.1% loss 46.2% | CP parries 11.20/rd, CP attacks parried  0.25/rd | dmg dealt 1.05 taken 1.47
+vs mixer           win 98.3% draw  1.2% loss  0.4% | CP parries  0.99/rd, CP attacks parried  0.31/rd | dmg dealt 4.52 taken 0.86
+vs flanker         win 33.3% draw 17.5% loss 49.2% | CP parries  0.29/rd, CP attacks parried  2.25/rd | dmg dealt 2.00 taken 2.27
+      CP deals: target out of stamina 1.05, flank 0.87, target stunned 0.02, target on attack cooldown 0.02, other 0.04
+      CP takes: flank 1.93, target out of stamina 0.15, target on attack cooldown 0.15, other 0.03, target stunned 0.02
+vs switcher        win 57.9% draw  8.8% loss 33.3% | CP parries  4.83/rd, CP attacks parried  0.95/rd | dmg dealt 3.44 taken 2.04
+vs kiter           win 63.7% draw  7.5% loss 28.7% | CP parries  3.44/rd, CP attacks parried  0.02/rd | dmg dealt 4.62 taken 3.10
+vs counter_puncher win 25.8% draw 47.5% loss 26.7% | CP parries  2.74/rd, CP attacks parried  2.65/rd | dmg dealt 1.39 taken 1.38
+vs scripted_npc    win 57.1% draw  0.8% loss 42.1% | CP parries  4.33/rd, CP attacks parried  1.53/rd | dmg dealt 3.75 taken 2.67
+vs random          win 84.2% draw 14.6% loss  1.2% | CP parries  0.90/rd, CP attacks parried  0.22/rd | dmg dealt 2.94 taken 0.67
+vs waiter          win 47.9% draw 41.2% loss 10.8% | CP parries  0.00/rd, CP attacks parried  0.00/rd | dmg dealt 0.94 taken 0.45
+      CP deals: other 0.16, flank 0.78
+      CP takes: target out of stamina 0.39, flank 0.05, target on attack cooldown 0.01
+
+Damage the counter_puncher DEALS to the non-probe opponents, by cause (total hits):
+  target stunned (post-parry)        3254 (46.0%)
+  target on attack cooldown           676 ( 9.6%)
+  flank (target not facing)          1090 (15.4%)
+  target out of stamina               387 ( 5.5%)
+  other (frontal, unblocked)         1668 (23.6%)

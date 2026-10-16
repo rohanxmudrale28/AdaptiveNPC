@@ -1,7 +1,7 @@
 # Scripted archetype parameters, train / held-out split and the switcher schedule.
 seed: 0
 
-train: [rusher, camper, repeater, mixer, switcher]
+train: [rusher, camper, repeater, mixer, flanker, switcher]
 heldout: [kiter, counter_puncher]
 
 # 'noise' = probability of replacing the scripted action with a uniformly random one.
@@ -30,8 +30,12 @@ switcher:
 kiter:
   noise: 0.05
 
+flanker:
+  noise: 0.05            # reaches a side tile of the opponent and attacks from there (beats block)
+
 counter_puncher:
-  noise: 0.05
+  noise: 0.2
+  reaction_delay: 1      # steps late when punishing an attack/stun
 
 scripted_npc:            # hand-coded baseline NPC
   noise: 0.0
