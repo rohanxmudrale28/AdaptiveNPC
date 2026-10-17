@@ -95,3 +95,17 @@ opponents:                        # non-archetype opponents for the runner (adap
   learners_chosen: results/learners/main/chosen.csv   # online setting chosen by check_learner_drift (M9)
   learner_entry: lr3e-4_u64       # must match chosen.csv (checked at build time)
   learner_seeds: [0, 1, 2]        # learner checkpoint = NPC seed mod 3; learners update online, fresh each match
+
+gonogo:                           # scripts/gonogo_mbom.py; criterion fixed in PLAN.md (M8) before any run
+  out_dir: results/mbom/gonogo
+  opponent: exploiter_seed1       # DEVELOPMENT exploiter: tuning / go-no-go only, excluded from final claims
+  seeds: [0, 1, 2, 3, 4]          # NPC checkpoint seeds = cells
+  matches_per_cell: 7             # fresh NPC state (MBOM IOPs / mixer / buffer, ppo_predicted predictor) per match
+  rounds: 30
+  env_seed_base: 20000            # match i of cell s: env seed = env_seed_base + 100 * s + i (same for every method)
+  methods: [mbom, mbom_no_imagination, ppo_predicted]
+  control: ppo_predicted
+  ablation_ref: mbom_no_imagination
+  min_gain: 0.05                  # GO: mean(MBOM) - mean(control) >= min_gain and paired 95% CI lower bound > 0
+  early_rounds: 5                 # report win rate in rounds 1-5 vs the last 5 (26-30)
+  late_rounds: 5

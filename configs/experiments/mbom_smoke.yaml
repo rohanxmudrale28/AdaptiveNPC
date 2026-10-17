@@ -85,3 +85,17 @@ opponents:                        # non-archetype opponents for the runner (adap
   learners_chosen: results/learners/main/chosen.csv   # online setting chosen by check_learner_drift (M9)
   learner_entry: lr3e-4_u64       # must match chosen.csv (checked at build time)
   learner_seeds: [0, 1, 2]        # learner checkpoint = NPC seed mod 3; learners update online, fresh each match
+
+gonogo:
+  out_dir: results/mbom/smoke/gonogo
+  opponent: exploiter_seed1
+  seeds: [0, 1]
+  matches_per_cell: 2
+  rounds: 4
+  env_seed_base: 20000
+  methods: [mbom, mbom_no_imagination, ppo_predicted]
+  control: ppo_predicted
+  ablation_ref: mbom_no_imagination
+  min_gain: 0.05
+  early_rounds: 2
+  late_rounds: 2
