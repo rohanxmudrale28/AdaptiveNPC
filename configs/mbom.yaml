@@ -3,7 +3,17 @@ seed: 0
 env_config: configs/env.yaml
 players_config: configs/players.yaml
 predictor_checkpoint: models/predictor.pt
+predictor_config: configs/predictor.yaml  # its 'online' block is ppo_predicted's own online setting (baseline)
 model_dir: models/npc
+
+mbom:                             # online loop (adaptive_npc/npc/mbom/agent.py)
+  n_levels: 3                     # φ0, φ1, φ2
+  update_every: 50                # real steps between IOP updates (counted across rounds)
+  buffer: 256                     # last real (window, state, opponent action) entries used by an update
+  lr: 0.001                       # Adam lr of every level (φ0 on real actions, φ_m on best-response targets)
+  grad_steps: 3
+  warmup_grad_steps: 10           # φ1.. on the first update (they start identical to φ0)
+  cond_input: mix                 # mix | top_level | sample_level (probe result: keep mix, PLAN.md M8)
 
 imagination:                      # opponent best responses in Γ (adaptive_npc/npc/mbom/imagination.py, eq. 5)
   k: 2                            # continuation steps after the candidate action (Γ steps k + 1 times)
@@ -49,3 +59,15 @@ probe:
   # (draws = 1/2) of any decision variant drops more than max_drop below the control.
   decision_variants: [mix_sharp, mix_perm, mix_alpha_cap]
   max_drop: 0.05
+
+eval:                             # scripts/eval_mbom.py (runner grid; methods may mix baselines and MBOM variants)
+  out_dir: results/mbom/main
+  methods: [mbom]                 # mbom | mbom_no_imagination | mbom_random_finetune | mbom_single_level1 |
+                                  # mbom_single_level2 | mbom_uniform_mix | ppo_none | ppo_predicted | scripted
+  opponents: null                 # null -> train + heldout lists from players.yaml
+  seeds: [0, 1, 2, 3, 4]          # also selects the ppo_predicted checkpoint
+  rounds: 30
+  first_n_rounds: 10
+  env_seed_base: 10000
+  deterministic: true             # evaluation convention: greedy NPC actions (imagination: imagination.imagined_npc)
+  predictor_online: true          # ppo_predicted baseline finetunes its predictor with predictor_config 'online'

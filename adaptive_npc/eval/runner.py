@@ -1,23 +1,27 @@
 """Evaluation grid: method x opponent x seed -> results/<exp>/<method>/<opponent>/seed_<n>/.
 
-Methods: 'scripted', 'random', 'ppo_none', 'ppo_predicted', 'ppo_oracle'. PPO methods load
-<model_dir>/<mode>_seed<seed>.pt. Every cell is one match (persistent opponent state, `rounds` rounds)
+Methods: 'scripted', 'random', 'ppo_none', 'ppo_predicted', 'ppo_oracle', and 'mbom' / 'mbom_<ablation>'
+(npc/mbom/agent.py; writes a per-round mbom_rounds.csv). PPO and MBOM methods load <model_dir>/<mode>_seed<seed>.pt. Every cell is one match (persistent opponent state, `rounds` rounds)
 played through NPCEnv, so all methods share one code path (and oracle can peek the opponent).
 """
 import csv
 from pathlib import Path
 
+import numpy as np
+
 from adaptive_npc.env.gym_env import NPCEnv
 from adaptive_npc.eval.metrics import aggregate, summarize_rounds
 from adaptive_npc.logging_utils import save_run_metadata
+from adaptive_npc.npc.mbom.agent import build_mbom
 from adaptive_npc.npc.ppo_npc import ConditionFactory, PolicyNPC, model_path
 from adaptive_npc.players.base import RandomPlayer
 from adaptive_npc.players.scripted import make_player
 
 
 def write_csv(path, rows):
+    fields = list(dict.fromkeys(k for r in rows for k in r))  # union in first-seen order (MBOM rows add columns)
     with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w = csv.DictWriter(f, fieldnames=fields, restval="")
         w.writeheader()
         w.writerows(rows)
 
@@ -45,6 +49,13 @@ def build_npc(cfg, env_cfg, players_cfg, method, seed, base_env, npc_seed):
     cfg needs eval.deterministic / eval.predictor_online, online, predictor_checkpoint, train.model_dir.
     Returns (env, act_fn, on_round_start); PPO methods load <model_dir>/<mode>_seed<seed>.pt."""
     ev = cfg["eval"]
+    if method.startswith("mbom"):  # needs cfg mbom / imagination / mixer blocks (configs/mbom.yaml)
+        env, policy = build_mbom(cfg, env_cfg, method, seed, base_env)
+        det = bool(ev["deterministic"])
+
+        def act_fn(obs, hist):
+            return int(policy.predict(obs, deterministic=det)[0])
+        return env, act_fn, None
     if method.startswith("ppo_"):
         mode = method[len("ppo_"):]
         online = cfg["online"] if ev.get("predictor_online") else None
@@ -67,13 +78,21 @@ def build_npc(cfg, env_cfg, players_cfg, method, seed, base_env, npc_seed):
     return base_env, act_fn, npc.reset
 
 
+def trace_summary(trace):
+    """Step-weighted match means of the MBOM per-round trace (prediction accuracy / NLL, input drift)."""
+    w = np.array([r["steps"] for r in trace], dtype=float)
+    return {k: float(np.average([r[k] for r in trace], weights=w))
+            for k in ("acc_mixed", "nll_mixed", "argmax_changed", "input_entropy", "phi0_entropy")}
+
+
 def run_cell(cfg, env_cfg, players_cfg, method, opponent, seed):
     ev = cfg["eval"]
     env_seed = int(ev["env_seed_base"]) + int(seed)
     opp = make_player(opponent, players_cfg, env_cfg, env_seed + 1)
     base_env = NPCEnv(env_cfg, opponent=opp, seed=env_seed)
     env, act_fn, on_round_start = build_npc(cfg, env_cfg, players_cfg, method, seed, base_env, env_seed + 2)
-    return play_match(env, act_fn, int(ev["rounds"]), env_seed, on_round_start)
+    rounds = play_match(env, act_fn, int(ev["rounds"]), env_seed, on_round_start)
+    return rounds, getattr(env, "round_log", None)  # per-round MBOM trace (None for other methods)
 
 
 def run_grid(cfg, env_cfg, players_cfg, out_dir, methods=None, opponents=None, seeds=None):
@@ -87,12 +106,15 @@ def run_grid(cfg, env_cfg, players_cfg, out_dir, methods=None, opponents=None, s
     for method in methods:
         for opp in opponents:
             for seed in seeds:
-                rounds = run_cell(cfg, env_cfg, players_cfg, method, opp, seed)
+                rounds, trace = run_cell(cfg, env_cfg, players_cfg, method, opp, seed)
                 cell = out / method / opp / f"seed_{seed}"
                 save_run_metadata(cell, cfg)
                 write_csv(cell / "rounds.csv", rounds)
                 row = {"method": method, "opponent": opp, "heldout": opp in held, "seed": int(seed),
                        **summarize_rounds(rounds, env_cfg["hp"], int(ev["first_n_rounds"]))}
+                if trace:
+                    write_csv(cell / "mbom_rounds.csv", trace)
+                    row.update(trace_summary(trace))
                 write_csv(cell / "metrics.csv", [row])
                 rows.append(row)
     write_csv(out / "metrics.csv", rows)

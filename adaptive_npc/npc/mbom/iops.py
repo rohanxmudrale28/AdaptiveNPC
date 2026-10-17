@@ -41,15 +41,16 @@ class IOPSet:
         wins, raws, acts = zip(*self.buffer)
         return torch.stack(wins), torch.stack(raws).long(), torch.tensor(acts)
 
-    def finetune(self, m, wins, targets):
-        """grad_steps Adam steps of cross-entropy to targets: [N] action ids or [N, 8] soft distributions."""
+    def finetune(self, m, wins, targets, steps=None):
+        """`steps` (default grad_steps) Adam steps of cross-entropy to targets: [N] action ids or [N, 8] soft
+        distributions."""
         model, opt = self.levels[m], self.opts[m]
         model.train()
-        for _ in range(self.grad_steps):
+        for _ in range(self.grad_steps if steps is None else int(steps)):
             logp = F.log_softmax(model(wins), dim=-1)
             loss = (F.nll_loss(logp, targets) if targets.dim() == 1 else -(targets * logp).sum(1).mean())
             opt.zero_grad()
             loss.backward()
             opt.step()
         model.eval()
-        return float(loss)
+        return loss.item()

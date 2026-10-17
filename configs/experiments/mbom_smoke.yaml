@@ -1,9 +1,50 @@
-# Smoke config for M8 MBOM scripts (~1 min). Same keys as configs/mbom.yaml; uses the real checkpoints.
+# Smoke config for M8 MBOM scripts (~1-2 min). Same keys as configs/mbom.yaml; uses the real checkpoints.
 seed: 0
 env_config: configs/env.yaml
 players_config: configs/players.yaml
 predictor_checkpoint: models/predictor.pt
+predictor_config: configs/predictor.yaml
 model_dir: models/npc
+
+mbom:
+  n_levels: 3
+  update_every: 20
+  buffer: 64
+  lr: 0.001
+  grad_steps: 3
+  warmup_grad_steps: 10
+  cond_input: mix
+
+imagination:
+  k: 2
+  opp_samples: 4
+  npc_samples: 1
+  score_agg: max
+  imagined_npc: stochastic
+  tau_br: 0.1
+  gamma: 0.99
+  chunk_rows: 32768
+  oracle_model: false
+  env_model_checkpoint: models/env_model.pt
+
+mixer:
+  decay: 0.9
+  temperature: 0.5
+  prior_avg: 0.9
+  eps: 0.001
+  prior_floor: 0.01
+
+eval:
+  out_dir: results/mbom/smoke
+  methods: [mbom, mbom_no_imagination, mbom_random_finetune, mbom_single_level1, mbom_single_level2,
+            mbom_uniform_mix, ppo_predicted, ppo_none, scripted]
+  opponents: [rusher, switcher]
+  seeds: [0]
+  rounds: 3
+  first_n_rounds: 2
+  env_seed_base: 10000
+  deterministic: true
+  predictor_online: true
 
 probe:
   out_dir: results/mbom/smoke/probe_cond_shift

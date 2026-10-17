@@ -1,4 +1,5 @@
 """M8: MBOM components (no checkpoints needed unless marked)."""
+import csv
 import itertools
 from pathlib import Path
 
@@ -13,6 +14,8 @@ from adaptive_npc.env.core import ArenaGame
 from adaptive_npc.env.observations import encode
 from adaptive_npc.models.env_model import STATE_DIM, EnvSpec, TrueSimulator, load_env_model, raw_state
 from adaptive_npc.models.player_model import FEAT_DIM, PlayerPredictor
+from adaptive_npc.eval.runner import run_grid
+from adaptive_npc.npc.mbom.agent import MBOMAgent, parse_method
 from adaptive_npc.npc.mbom.imagination import aggregate_q, br_targets, imagined_returns
 from adaptive_npc.npc.mbom.iops import IOPSet
 from adaptive_npc.npc.mbom.mixer import BayesMixer
@@ -287,3 +290,140 @@ def test_true_simulator_step_t_matches_step():
     n, r, d = sim.step(raw, a0, a1)
     nt, rt, dt = sim.step_t(torch.from_numpy(raw.astype(np.int64)), torch.from_numpy(a0), torch.from_numpy(a1))
     assert np.array_equal(nt.numpy(), n) and np.array_equal(rt.numpy(), r) and np.array_equal(dt.numpy(), d)
+
+
+# ---- agent / ablations (small random-init policy and predictor, true simulator; no checkpoints) ----
+
+def tiny_agent(ablation="none", level=None, cond_input="mix", update_every=10):
+    from gymnasium import spaces
+    from stable_baselines3.common.policies import ActorCriticPolicy
+    torch.manual_seed(0)
+    policy = ActorCriticPolicy(spaces.Box(-1, 1, (29,), np.float32), spaces.Discrete(8), lambda _: 0.0,
+                               net_arch={"pi": [16], "vf": [16]})
+    mb = {"n_levels": 3, "update_every": update_every, "buffer": 32, "lr": 1e-3, "grad_steps": 2,
+          "warmup_grad_steps": 3, "cond_input": cond_input}
+    im = {"k": 2, "opp_samples": 2, "npc_samples": 1, "score_agg": "max", "imagined_npc": "stochastic",
+          "tau_br": 0.1, "gamma": 0.99, "chunk_rows": 4096}
+    mix = {"decay": 0.9, "temperature": 0.5, "prior_avg": 0.9, "eps": 1e-3, "prior_floor": 0.01}
+    return MBOMAgent(mb, im, mix, SPEC, PlayerPredictor(hidden=16), 8, policy, TrueSimulator(ENV), ablation, level,
+                     seed=0)
+
+
+def drive(agent, n_steps, seed=0):
+    """Feed the agent n_steps real-looking steps (random legal states, random actions); rounds of 15 steps."""
+    rng = np.random.default_rng(seed)
+    raw = random_legal_states(n_steps, seed + 100)
+    raw[:, 6:8] = np.maximum(raw[:, 6:8], 1)  # alive
+    obs = encode_raw(raw, 0, SPEC).numpy()
+    conds = []
+    for i in range(n_steps):
+        conds.append(agent.cond(obs[i], raw[i]))
+        agent.observe(int(rng.integers(8)), int(rng.integers(8)))
+        if (i + 1) % 15 == 0:
+            agent.end_round()
+    return np.array(conds)
+
+
+def test_parse_method():
+    assert parse_method("mbom") == ("none", None)
+    assert parse_method("mbom_no_imagination") == ("no_imagination", None)
+    assert parse_method("mbom_single_level2") == ("single_level", 2)
+    with pytest.raises(ValueError):
+        parse_method("mbom_bogus")
+
+
+def count_imagination(monkeypatch, fail=False):
+    import adaptive_npc.npc.mbom.agent as agent_mod
+    calls = []
+    real = agent_mod.imagined_returns
+
+    def spy(*a, **kw):
+        if fail:
+            raise AssertionError("imagination must not run for this ablation")
+        calls.append(a[4])  # iop_prev
+        return real(*a, **kw)
+    monkeypatch.setattr(agent_mod, "imagined_returns", spy)
+    return calls
+
+
+def test_no_imagination_never_imagines_and_feeds_phi0(monkeypatch):
+    count_imagination(monkeypatch, fail=True)
+    agent = tiny_agent("no_imagination")
+    conds = drive(agent, 30)
+    assert agent.n_updates == 3
+    assert np.allclose(agent.mixer.alpha, [1, 0, 0])
+    assert all(np.allclose([r[f"alpha_l{m}_mean"] for m in range(3)], [1, 0, 0]) for r in agent.round_log)
+    assert conds.shape == (30, 8) and np.allclose(conds.sum(1), 1, atol=1e-5)
+
+
+def test_random_finetune_uses_uniform_random_labels(monkeypatch):
+    count_imagination(monkeypatch, fail=True)
+    agent = tiny_agent("random_finetune")
+    seen = []
+    real = agent.iops.finetune
+    agent.iops.finetune = lambda m, w, t, steps=None: (seen.append((m, t.clone())), real(m, w, t, steps))[1]
+    drive(agent, 200)
+    labels = torch.cat([t for m, t in seen if m >= 1])
+    assert labels.dtype == torch.long and {m for m, _ in seen} == {0, 1, 2}
+    freq = torch.bincount(labels, minlength=8).float() / len(labels)
+    assert torch.all((freq - 1 / 8).abs() < 0.03)
+
+
+@pytest.mark.parametrize("level", [1, 2])
+def test_single_level_builds_levels_up_to_m_and_fixes_alpha(monkeypatch, level):
+    calls = count_imagination(monkeypatch)
+    agent = tiny_agent("single_level", level)
+    drive(agent, 20)
+    assert len(calls) == 2 * level  # 2 updates x levels 1..m
+    assert np.allclose(agent.mixer.alpha, np.eye(3)[level])
+
+
+def test_full_mbom_and_uniform_mix(monkeypatch):
+    calls = count_imagination(monkeypatch)
+    agent = tiny_agent("none")
+    drive(agent, 20)
+    assert len(calls) == 4  # 2 updates x levels 1, 2
+    log = agent.round_log[0]
+    assert log["alpha_cap"] == pytest.approx(0.787, abs=1e-3) and log["updates"] == 1
+    assert not np.isnan(log["q_spread"]) and 0 <= log["argmax_changed"] <= 1
+    assert {f"acc_l{m}" for m in range(3)} <= set(log)
+    uni = tiny_agent("uniform_mix")
+    drive(uni, 20)
+    assert np.allclose(uni.mixer.alpha, 1 / 3)
+
+
+def test_cond_input_modes():
+    for mode in ("mix", "top_level", "sample_level"):
+        conds = drive(tiny_agent(cond_input=mode), 25)
+        assert np.allclose(conds.sum(1), 1, atol=1e-5)
+    with pytest.raises(ValueError):
+        tiny_agent(cond_input="median")
+
+
+def test_agent_is_deterministic():
+    a, b = tiny_agent(), tiny_agent()
+    ca, cb = drive(a, 30), drive(b, 30)
+    assert np.array_equal(ca, cb)
+    assert a.round_log[-1]["q_spread"] == b.round_log[-1]["q_spread"]
+
+
+CKPTS = ("models/npc/predicted_seed0.pt", "models/predictor.pt", "models/env_model.pt")
+
+
+@pytest.mark.skipif(not all(Path(p).exists() for p in CKPTS), reason="needs the trained checkpoints")
+def test_mbom_grid_smoke_writes_trace_and_is_deterministic(tmp_path):
+    from scripts.eval_mbom import prepare
+    cfg = prepare(load_config("configs/experiments/mbom_smoke.yaml",
+                              ["eval.rounds=2", "eval.seeds=[0]", "eval.opponents=[rusher]", "mbom.update_every=15"]))
+    players = load_config(cfg["players_config"])
+    outs = []
+    for run in ("a", "b"):
+        rows, _ = run_grid(cfg, ENV, players, tmp_path / run, ["mbom", "ppo_predicted"])
+        cell = tmp_path / run / "mbom" / "rusher" / "seed_0"
+        assert (cell / "metrics.csv").exists() and (cell / "mbom_rounds.csv").exists()
+        with open(cell / "mbom_rounds.csv", encoding="utf-8") as f:
+            trace = [{k: v for k, v in r.items() if k != "update_seconds"} for r in csv.DictReader(f)]  # wall clock
+        outs.append((trace, (cell / "rounds.csv").read_text()))
+        assert "acc_mixed" in rows[0] and "acc_mixed" not in rows[1]
+        assert len(trace) == 2 and sum(int(r["updates"]) for r in trace) >= 1
+    assert outs[0] == outs[1]
