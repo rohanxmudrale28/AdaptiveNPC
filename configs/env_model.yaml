@@ -22,6 +22,7 @@ train:
   reward_loss_weight: 1.0
 
 eval:
+  random_actions: {n: 20000, seed: 7}    # slice: val states + uniformly random actions on both sides
   reward_tol: 0.05                       # reward counts as exactly right within this (shaping steps are 0.1)
 
 collect:

@@ -8,7 +8,8 @@ Rows: mae / rmse in raw units (facing: mae is the class mismatch rate, rmse empt
 """
 import numpy as np
 
-from adaptive_npc.models.env_model import CHANNELS, CHANNEL_IDX, FACE
+from adaptive_npc.env.actions import N_ACTIONS
+from adaptive_npc.models.env_model import CHANNELS, CHANNEL_IDX, FACE, TrueSimulator
 
 
 def _channel_rows(pred, true, base, reward_pred, reward_true, tol, done_true):
@@ -53,31 +54,64 @@ def predictions(model, data):
     return out
 
 
-def evaluate(model, data, reward_tol):
-    """Rows of {horizon, feature, n, mae, rmse, exact, copy_exact} for horizons 1 and 2."""
+def random_action_predictions(model, data, env_cfg, n, seed):
+    """Random-action slice: n states sampled from `data` (e.g. val), BOTH sides' actions uniformly random at each of
+    the two steps. Ground truth comes from the true simulator; 2-step pairs whose first step ends the round are dropped."""
+    rng = np.random.default_rng(seed)
+    s = data["state"][rng.choice(len(data["state"]), min(n, len(data["state"])), replace=False)]
+    a = rng.integers(N_ACTIONS, size=(4, len(s)))
+    sim = TrueSimulator(env_cfg)
+    t1, tr1, td1 = sim.step(s, a[0], a[1])
+    p1, pr1, _ = model.step(s, a[0], a[1])
+    k = ~td1
+    t2, tr2, td2 = sim.step(t1[k], a[2][k], a[3][k])
+    p2, pr2, _ = model.step(p1[k], a[2][k], a[3][k])
+    return {1: {"pred": p1, "pred_r": pr1, "true": t1, "true_r": tr1, "base": s, "done": td1},
+            2: {"pred": p2, "pred_r": pr2, "true": t2, "true_r": tr2, "base": s[k], "done": td2}}
+
+
+def rows_from_predictions(preds, reward_tol):
     rows = []
-    for h, p in predictions(model, data).items():
+    for h, p in preds.items():
         rows += [{"horizon": h, **r} for r in _channel_rows(p["pred"], p["true"], p["base"], p["pred_r"], p["true_r"],
                                                             reward_tol, p["done"])]
     return rows
 
 
-def evaluate_groups(model, data, reward_tol):
-    """Per NPC kind / per opponent: all-state exact rate and reward MAE at both horizons."""
-    preds = predictions(model, data)
+def evaluate(model, data, reward_tol):
+    """Rows of {horizon, feature, n, mae, rmse, exact, copy_exact} for horizons 1 and 2."""
+    return rows_from_predictions(predictions(model, data), reward_tol)
+
+
+def evaluate_random_actions(model, data, env_cfg, n, seed, reward_tol):
+    """(feature rows, errors_by_group row) for the random-action slice."""
+    preds = random_action_predictions(model, data, env_cfg, n, seed)
+    return rows_from_predictions(preds, reward_tol), _group_row("random_actions", "val_states", preds, reward_tol)
+
+
+def _group_row(group, name, preds, tol, mask=None):
     idx_all = list(CHANNEL_IDX)
+    row = {"group": group, "name": name}
+    for h, p in preds.items():
+        m = np.ones(len(p["pred"]), bool) if mask is None else mask(h, p)
+        if not m.any():
+            return None
+        dr = np.abs(p["pred_r"][m] - p["true_r"][m])
+        row.update({f"n_h{h}": int(m.sum()),
+                    f"all_state_exact_h{h}": float(np.mean((p["pred"][m][:, idx_all] == p["true"][m][:, idx_all]).all(1))),
+                    f"reward_mae_h{h}": float(dr.mean()), f"reward_exact_h{h}": float(np.mean(dr <= tol))})
+    return row
+
+
+def evaluate_groups(model, data, reward_tol):
+    """Per NPC kind / per opponent: all-state exact rate and reward MAE / exactness at both horizons."""
+    preds = predictions(model, data)
     rows = []
     for kind, ids, names in (("npc", data["npc_id"], data["npc_names"]), ("opponent", data["opp_id"], data["opp_names"])):
         for g, name in enumerate(names):
-            row = {"group": kind, "name": str(name)}
-            for h, p in preds.items():
-                m = ids[p["idx"]] == g
-                if not m.any():
-                    continue
-                row[f"n_h{h}"] = int(m.sum())
-                row[f"all_state_exact_h{h}"] = float(np.mean((p["pred"][m][:, idx_all] == p["true"][m][:, idx_all]).all(1)))
-                row[f"reward_mae_h{h}"] = float(np.abs(p["pred_r"][m] - p["true_r"][m]).mean())
-            if "n_h1" in row:
+            row = _group_row(kind, str(name), {h: p for h, p in preds.items() if (ids[p["idx"]] == g).any()}, reward_tol,
+                             lambda h, p, ids=ids, g=g: ids[p["idx"]] == g)
+            if row and "n_h1" in row:
                 rows.append(row)
     return rows
 

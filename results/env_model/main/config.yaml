@@ -18,6 +18,9 @@ train:
   lr_final: 5.0e-05
   reward_loss_weight: 1.0
 eval:
+  random_actions:
+    n: 20000
+    seed: 7
   reward_tol: 0.05
 collect:
   npc_methods:

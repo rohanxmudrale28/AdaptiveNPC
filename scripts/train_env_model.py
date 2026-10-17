@@ -18,7 +18,7 @@ import numpy as np
 import torch
 
 from adaptive_npc.config import add_config_args, config_from_args, load_config
-from adaptive_npc.eval.env_model_eval import evaluate, evaluate_groups, format_table
+from adaptive_npc.eval.env_model_eval import evaluate, evaluate_groups, evaluate_random_actions, format_table
 from adaptive_npc.eval.runner import write_csv
 from adaptive_npc.logging_utils import save_run_metadata
 from adaptive_npc.models.env_model import EnvModel, EnvSpec, features, load_env_model, loss_fn, save_env_model, targets
@@ -111,6 +111,11 @@ def main():
         rows += [{"set": split, **r} for r in res]
         group_rows += [{"set": split, **r} for r in evaluate_groups(model, data[split], tol)]
         tables.append(format_table(res, titles.get(split, split)))
+    ra = cfg["eval"]["random_actions"]
+    res, grow = evaluate_random_actions(model, data["val"], env_cfg, int(ra["n"]), int(ra["seed"]), tol)
+    rows += [{"set": "random_actions", **r} for r in res]
+    group_rows.append({"set": "random_actions", **grow})
+    tables.insert(2, format_table(res, f"random-action slice ({ra['n']} val states, both sides uniformly random)"))
     write_csv(out / "errors.csv", rows)
     write_csv(out / "errors_by_group.csv", group_rows)
     text = "\n\n".join(tables)
