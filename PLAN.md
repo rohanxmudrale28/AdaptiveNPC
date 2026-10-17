@@ -212,14 +212,32 @@ Conventions:
   - [x] Test: the naive learner's win rate rises over a match vs a frozen NPC (frozen rusher, random-init learner, 150 rounds; camper/repeater are draw-heavy and give no signal)
   - [x] Test: the reasoning learner's NPC-prediction accuracy is above chance
   - [x] `scripts/train_exploiter.py`: starts from the pretrained naive learner, trains SB3 PPO for 1M steps (seeds 0–2) against the frozen `ppo_predicted` seed 0 (embedded as a `PolicyPlayer`), then evaluates it and the start policy over 200 rounds vs `ppo_predicted` and `ppo_none` (win rate, damage; greedy and stochastic). Smoke-tested.
-  - [ ] Full exploiter results (user run, `results/exploiter/main`)
+  - [x] Full exploiter results (user run, `results/exploiter/main`; 1M steps per seed vs frozen `ppo_predicted` seed 0; player-side win rate with draws = ½, over 200 rounds; damage per round, HP 5)
+
+    | exploiter seed | acting | vs `ppo_predicted` s0: win rate | dealt / taken | vs `ppo_none` s0: win rate | dealt / taken |
+    |---|---|---|---|---|---|
+    | 0 | greedy | 0.960 | 4.84 / 0.54 | 0.533 | 2.65 / 1.86 |
+    | 0 | stochastic | 0.958 | 4.87 / 0.82 | 0.595 | 3.49 / 3.06 |
+    | 1 | greedy | 0.448 | 2.70 / 3.41 | 0.218 | 1.69 / 3.90 |
+    | 1 | stochastic | 0.513 | 2.92 / 3.33 | 0.143 | 1.69 / 4.49 |
+    | 2 | greedy | 0.705 | 3.53 / 2.48 | 0.830 | 4.04 / 1.68 |
+    | 2 | stochastic | 0.945 | 4.73 / 1.66 | 0.650 | 3.33 / 2.54 |
+    | mean ± 95% CI | greedy | 0.704 ± 0.637 | 3.69 / 2.14 | 0.527 ± 0.761 | 2.79 / 2.48 |
+    | mean ± 95% CI | stochastic | 0.805 ± 0.629 | 4.17 / 1.93 | 0.463 ± 0.692 | 2.84 / 3.36 |
+    | start policy (pretrained naive) | greedy / stochastic | 0.000 / 0.000 | 0.18 / 4.99 | 0.274 / 0.262 | 2.16 / 3.79 |
+
+    - Start-policy row: means over the 3 seeds; damage is from greedy acting.
+    - `ppo_predicted` is exploitable by offline training: every exploiter seed goes from 0.00 to 0.45–0.96 against it. Seed 1 is much weaker than seeds 0 and 2, hence the wide CIs.
+    - The exploit transfers only partly: against `ppo_none` (not trained on) the exploiters are level on average (0.46–0.53, start 0.26–0.27).
+    - [ ] Cross-evaluation vs all NPC modes and seeds: `scripts/eval_exploiters.py` → `results/exploiter/cross_eval.csv` (user run)
   - [ ] (Optional) Retrain the NPC with learner snapshots in the opponent pool
   - [x] Commit
 
 ### Tier 3 — Experiments
 - [ ] **M10 Experiment grid**
   - [ ] Methods: scripted, PPO, pred-PPO, MBOM, and 4 ablations
-  - [ ] Opponents: fixed archetypes, switcher, naive, reasoning, held-out
+  - [ ] Opponents: fixed archetypes, switcher, naive, reasoning, held-out, frozen exploiter
+    - Frozen exploiter: `models/exploiter/exploiter_seed{0,1,2}.pt` (from `scripts/train_exploiter.py`), loaded as a `PolicyPlayer` with stochastic acting, no online updates. It is a known counter to `ppo_predicted`, so it tests whether an NPC (in particular MBOM) can adapt to an opponent that already exploits it.
   - [ ] Seeds: [0, 1, 2, 3, 4]
   - [ ] Metrics: win rate, return, prediction accuracy/KL, adaptation time after a switch
   - [ ] Commit configs and results
@@ -322,6 +340,7 @@ Conventions:
 - **`counter_puncher` still wins 90%+ against deterministic opponents** (rusher, kiter, repeater, mixer). It is no longer dominant, because it loses to flanker and `scripted_npc`. Softening only the delay and noise cannot fix this. Getting closer to 60–70% would need a change in its logic.
 - **Win rate saturates at about 100% against the fixed archetypes** for all three PPO modes (none, predicted, oracle), so win rate cannot separate them there. The comparison relies on the other metrics (episode length, damage taken, win rate over the first N rounds, prediction accuracy) and on the learning and switching opponents.
 - **Learners can't beat `ppo_predicted`.** Over a 30-round match, `ppo_predicted` wins about 90–100% against every learner and every LR / update-frequency setting (learner scores 0.00–0.10; verdict "lose" for all). Online learning shows up only as small within-match gains (last 10 − first 10 rounds up to about +0.17). Against `ppo_none` the learners are level (verdict "match", scores 0.2–0.6 with wide CIs); against `scripted` they win 0.88–1.00.
+- **The exploit exists but is out of reach online.** Offline exploiters, starting from the same pretrained naive policy, beat `ppo_predicted` (win rate 0.70–0.81 mean over 3 seeds), but they needed 1M training steps. A 30-round match gives an online learner only about 600–1,000 steps, roughly 0.1% of that budget, so the learners can't find the exploit within a match. The online learners' "lose" verdict vs `ppo_predicted` reflects the match budget, not an unexploitable NPC.
 - **KL is uninformative for near-deterministic policies.** The pretrained learners' entropy is only about 0.07–0.3 nats (maximum ln 8 ≈ 2.08). With so little probability mass off the argmax, small logit changes give large KL(π_start ‖ π_end): even the smallest LR gives 0.2–3.2 nats, far above `kl_min` = 0.05, so the threshold passes trivially. KL is reported, but the per-round score, damage and entropy are the meaningful signals. KL above `kl_min` does not mean the learner adapted usefully.
 
 ---
