@@ -1,0 +1,68 @@
+# M9 learning opponents: online settings + drift / outcome check. Run:
+#   python -m scripts.check_learner_drift --config configs/learners.yaml
+# Learner start policies come from configs/learners_pretrain.yaml (+ learners_npc_model.yaml).
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+out_dir: results/learners/main
+
+npc:                                   # frozen NPCs the learners play (easy / medium / hard)
+  opponents: [scripted, ppo_none, ppo_predicted]
+  model_dir: models/npc                # ppo_<mode> loads <model_dir>/<mode>_seed<checkpoint_seed>.pt
+  predictor_checkpoint: models/predictor.pt   # ppo_predicted's player model, kept frozen
+  checkpoint_seed: 0                   # null -> pair the NPC checkpoint seed with the learner seed (same cost)
+  deterministic: true
+
+learners:
+  naive:
+    policy: models/learners/none_seed{seed}.pt
+  reasoning:
+    policy: models/learners/predicted_seed{seed}.pt
+    npc_model: models/learners/npc_model.pt
+  gru_online:                          # reasoning learner's NPC-model finetuning (predictor.yaml 'online' block)
+    lr: 0.0003
+    every: 25
+    grad_steps: 3
+    buffer: 256
+    min_buffer: 32
+
+ppo_lite:                              # online PPO of both learners
+  lr: 0.0003
+  epochs: 4
+  minibatch: 32
+  clip: 0.2
+  ent_coef: 0.01
+  vf_coef: 0.5
+  target_kl: 0.03
+  max_grad_norm: 0.5
+  gamma: 0.99
+  gae_lambda: 0.95
+  critic_warmup_updates: 1             # first update trains the value head only (critic was fit vs scripted_npc)
+update_every: 64                       # learner env steps between ppo_lite updates
+
+kl_min: 0.05                           # mean KL(pi_start || pi_end) on the probe set, nats
+kl_check_opponent: ppo_predicted       # the LR is chosen on this opponent (outcomes are reported for all)
+
+match:
+  rounds: 30
+  first_n: 10                          # first / last N rounds for the within-match trend
+  seeds: [0, 1, 2]                     # learner checkpoint seed and match seed
+  env_seed_base: 20000
+
+probe:
+  states: 512
+  max_rounds: 200                      # warm-up rounds cap while collecting probe states
+  seed_offset: 500
+
+guards:                                # collapse guards on the frozen end-of-match learner
+  eval_rounds: 100
+  collapse_tol: 0.05                   # end score vs NPC must be >= start score - tol
+  seed_offset: 900
+
+sweep:                                 # each entry overrides ppo_lite.lr and update_every; empty -> one 'main' run
+  - {name: lr3e-4_u64, lr: 0.0003, update_every: 64}
+  - {name: lr3e-4_u32, lr: 0.0003, update_every: 32}
+  - {name: lr1e-3_u64, lr: 0.001,  update_every: 64}
+  - {name: lr1e-3_u32, lr: 0.001,  update_every: 32}
+  - {name: lr3e-3_u64, lr: 0.003,  update_every: 64}
+  - {name: lr3e-3_u32, lr: 0.003,  update_every: 32}

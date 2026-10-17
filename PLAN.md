@@ -189,19 +189,24 @@ Conventions:
   - [ ] Test: the mixer converges to the generating level on synthetic data
   - [ ] Test: imagination finds the known best response in a hand-built state
   - [ ] Commit
-- [ ] **M9 Learning opponents**
-  - [ ] `ppo_lite.py`
-  - [ ] Naive learner: pretrained vs the scripted NPC, then updated online every N steps
-  - [ ] Reasoning learner: its own GRU model of the NPC. Its policy is conditioned on the predicted NPC action, and both parts are finetuned online.
-  - [ ] `check_learner_drift.py`: measures whether each learner's policy actually changes during a 30-round match against a frozen NPC
-    - [ ] Fix a probe set of 512 states from the match's first rounds
-    - [ ] Snapshot the policy at match start and match end
-    - [ ] Report mean KL(π_start ‖ π_end) over the probe states, saved to `results/learners/drift.csv`
+- [ ] **M9 Learning opponents** (built before M7/M8)
+  - [x] `ppo_lite.py`: trains the SB3 `ActorCriticPolicy` loaded from a `.pt` in place (GAE, clip, normalized advantages, `target_kl` early stop, grad clip, `critic_warmup_updates`)
+  - [x] Naive learner: pretrained vs the scripted NPC, then updated online every N steps
+  - [x] Reasoning learner: its own GRU model of the NPC. Its policy is conditioned on the predicted NPC action, and both parts are finetuned online.
+  - [x] Pretraining reuses existing scripts with configs only (no `train_learners.py`), because observations are mirror-symmetric:
+    - NPC model: `train_predictor --config configs/learners_npc_model.yaml` (labels are scripted-NPC actions)
+    - Policies: `train_npc --config configs/learners_pretrain.yaml` (`none` → naive, `predicted` → reasoning, vs `[scripted_npc]`)
+  - [x] `check_learner_drift.py`: measures whether each learner's policy actually changes during a 30-round match against a frozen NPC
+    - [x] Frozen NPCs: `scripted`, `ppo_none` and `ppo_predicted` (easy / medium / hard; seed-0 checkpoints, player predictor frozen)
+    - [x] Fix a probe set of 512 states, from a separate warm-up rollout of the frozen start learner
+    - [x] Snapshot the policy at match start and match end; KL and policy entropy are also logged after every round
+    - [x] Report mean KL(π_start ‖ π_end) over the probe states, saved to `results/learners/drift.csv` (`kl_full`; `kl_policy` and `npc_model_kl` split the reasoning learner's change by part)
+    - [x] Round-by-round outcome per opponent against a frozen-learner control, with a beat/match/lose verdict from the 95% CI over seeds (`outcome.csv`, `plots/<opponent>.png`)
   - [ ] Check: mean KL ≥ `kl_min` (default 0.05 nats, in `learners.yaml`) for both learners
-  - [ ] If the check fails, tune the online LR (and update frequency) in `learners.yaml` until KL ≥ `kl_min`. The LR must not get so high that the learner collapses: it must still beat random and must not lose more than at match start.
+  - [ ] If the check fails, tune the online LR (and update frequency) in `learners.yaml` until KL ≥ `kl_min`. The LR must not get so high that the learner collapses: it must still beat random and must not lose more than at match start. The sweep covers lr {3e-4, 1e-3, 3e-3} × update_every {32, 64}; `chosen.csv` picks the smallest passing LR on `ppo_predicted`.
   - [ ] Log the chosen LR and its KL per seed
-  - [ ] Test: the naive learner's win rate rises over a match vs a frozen NPC
-  - [ ] Test: the reasoning learner's NPC-prediction accuracy is above chance
+  - [x] Test: the naive learner's win rate rises over a match vs a frozen NPC (frozen rusher, random-init learner, 150 rounds; camper/repeater are draw-heavy and give no signal)
+  - [x] Test: the reasoning learner's NPC-prediction accuracy is above chance
   - [ ] (Optional) Retrain the NPC with learner snapshots in the opponent pool
   - [ ] Commit
 
@@ -317,7 +322,7 @@ Conventions:
 - `pytest -q` passes, with new tests added each milestone.
 - `python -m scripts.benchmark_env --config configs/env.yaml` reports steps/s for the single and vectorized envs.
 - `python -m scripts.balance_matrix --config configs/balance.yaml` writes the matrix and the pass/fail result of the dominance check.
-- `python -m scripts.check_learner_drift --config configs/learners.yaml` reports the start→end KL per learner.
+- `python -m scripts.check_learner_drift --config configs/learners.yaml` reports the start→end KL per learner, plus the beat/match/lose outcome per opponent.
 - Each training script has a smoke config (`configs/experiments/smoke.yaml`). I run it end to end and check that `results/.../metrics.csv` is written. The user runs the full-budget runs and pastes summaries.
 - `python -m scripts.play --tick-rate 8` for manual checks of rendering, controls and the demo panel.
 - Commit after each green milestone, for example `M3: game balance matrix + tuned env params`.

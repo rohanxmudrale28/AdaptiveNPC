@@ -1,0 +1,5 @@
+round,winner,score,hp_learner,hp_npc,damage_dealt,damage_taken,steps,learner_return,kl_full,kl_policy,entropy,npc_model_kl,n_updates,npc_pred_acc
+0,0,0.0,0,5,0,5,28,-1.5,0.0,0.0,2.078524351119995,nan,0,nan
+1,0,0.0,0,5,0,5,28,-1.5,0.0,0.0,2.078524351119995,nan,1,nan
+2,0,0.0,0,5,0,5,50,-1.5,4.853142309002578e-05,4.853142309002578e-05,2.0785181522369385,nan,3,nan
+3,0,0.0,0,5,0,5,78,-1.5,0.00010086142719956115,0.00010086142719956115,2.0784196853637695,nan,5,nan
