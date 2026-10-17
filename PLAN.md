@@ -266,6 +266,30 @@ Conventions:
       | mbom − mbom_no_imagination | −0.050 | −0.050 ± 0.031 | −0.021 | +0.010 | −0.167 | −0.043 | −0.029 |
 
       Per cell (win rate mbom / no_imagination / ppo_predicted): seed 0 0.410 / 0.431 / 0.407; seed 1 0.243 / 0.233 / 0.200; seed 2 0.231 / 0.398 / 0.269; seed 3 0.579 / 0.621 / 0.586; seed 4 0.810 / 0.838 / 0.790. Most of the MBOM deficit comes from seed 2 (−0.167 vs `no_imagination`, where rounds are longest, 87 steps). All three methods improve from rounds 1–5 to 26–30, by +0.19 to +0.27.
+    - **Diagnosis (from the saved go/no-go data, no new runs; `scripts/diagnose_mbom.py` → `results/mbom/gonogo/diagnosis/`)**, step-weighted, rounds 1–5 / 6–25 / 26–30:
+
+      | | rounds 1–5 | rounds 6–25 | rounds 26–30 |
+      |---|---|---|---|
+      | φ0 accuracy (mbom) | 0.339 | 0.647 | 0.783 |
+      | φ1 / φ2 accuracy (mbom) | 0.168 / 0.160 | 0.167 / 0.178 | 0.178 / 0.206 |
+      | φ1 = φ2 = untouched pretrained copies (no_imagination) | 0.256 | 0.269 | 0.270 |
+      | α on φ0 / φ1 / φ2 | 0.52 / 0.24 / 0.24 | 0.76 / 0.12 / 0.12 | 0.78 / 0.11 / 0.11 |
+      | policy input entropy: mixed vs φ0 | 1.88 vs 1.72 | 1.57 vs 1.23 | 1.33 vs 0.85 |
+      | policy input max-prob: mixed vs φ0 | 0.29 vs 0.36 | 0.47 vs 0.57 | 0.59 vs 0.72 |
+      | steps where the policy's argmax changes vs π(·\|φ0) | 3.6% | 5.7% | 6.1% |
+      | Q spread (max − min over the 8 candidates) per update | 0.149 | 0.205 | 0.188 |
+      | implied max soft-BR target prob, e^{s/τ}/(e^{s/τ}+7) | 0.39 | 0.53 | 0.48 |
+
+      1. **The best-response levels predict this frozen exploiter worse than φ0, and worse than doing nothing.** φ0 learns the exploiter online (0.34 → 0.78). φ1 and φ2 stay at 0.16–0.21, below the untouched pretrained copy (0.26–0.27). The k = 2 imagined best response against π∘φ_{m−1} in Γ doesn't resemble what this exploiter does. That is expected for a fixed policy trained offline: it isn't reasoning about the current NPC model.
+      2. **The mixer does its job but can't fully commit.** α moves to φ0 and saturates at the 0.787 cap from round ~6. The remaining ≈ 22% on φ1 and φ2 flattens the policy input more and more as φ0 sharpens (entropy gap 0.16 → 0.48 nats; max-prob 0.72 → 0.59), and the policy's argmax flips on about 6% of late steps. The effect is largest on seed 2, where φ0 is most accurate: 0.86 accuracy, entropy 0.60 vs 1.18 mixed, 7.5% flips. That is the cell with the −0.167 deficit. So MBOM behaves like a blurred `no_imagination`.
+      3. **The Q spread isn't zero (0.15–0.21), so the BR targets aren't pure noise.** At τ = 0.1 they are soft, though: the best action gets at most 0.39–0.53. Combined with (1), the targets are informative about the imagined opponent but wrong about the real one.
+      4. **Early rounds:** the first update comes in round 2 (median; range 1–3), at real step 50. Before it, MBOM and `no_imagination` played identical rounds in 35/35 matches (all levels equal φ0, and the pairing and determinism hold). After it, MBOM falls behind: rounds 1–5 win rate 0.286 vs 0.309. `ppo_predicted` is best early (0.337), probably because its own online setting updates sooner (every 25 steps), but it is the worst late.
+      - Prediction for the variants: `top_level` should recover `no_imagination` (it feeds φ0 alone when α favours it). The prior settings shouldn't matter much, because the cap comes from the temperature T, not the prior. Lowering T (a higher cap) is the direct fix for (2). It is proposed, not run.
+    - **Adaptive-opponent hypothesis test (pre-registered before any run; `scripts/dev_variants.py --adaptive`, `results/mbom/adaptive_test`):**
+      - Question: does imagination help against opponents that adapt? Opponents: `naive_learner`, `reasoning_learner` (online, chosen lr3e-4_u64), `switcher`. 5 NPC seeds × 7 matches × 30 rounds, fresh state per match, paired seeds across methods.
+      - **H1:** mbom − `no_imagination` > 0 on pooled paired win rate (95% CI low > 0). Also reported per opponent and vs `ppo_predicted`.
+      - Secondary: paired damage taken (lower is better), because `ppo_predicted` wins about 100% against learners (M9) and the switcher (M6), so win rate is likely saturated. If all methods are at ≥ 0.95, H1 is reported as untestable on win rate and the conclusion rests on damage taken.
+      - This is not a decision gate. Learners and the switcher aren't exploiters 0 or 2, so this stays within the development set.
   - [ ] Commit
 - [x] **M9 Learning opponents** (built before M7/M8)
   - [x] `ppo_lite.py`: trains the SB3 `ActorCriticPolicy` loaded from a `.pt` in place (GAE, clip, normalized advantages, `target_kl` early stop, grad clip, `critic_warmup_updates`)

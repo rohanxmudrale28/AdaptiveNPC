@@ -109,3 +109,43 @@ gonogo:                           # scripts/gonogo_mbom.py; criterion fixed in P
   min_gain: 0.05                  # GO: mean(MBOM) - mean(control) >= min_gain and paired 95% CI lower bound > 0
   early_rounds: 5                 # report win rate in rounds 1-5 vs the last 5 (26-30)
   late_rounds: 5
+
+dev_variants:                     # scripts/dev_variants.py -> <out_dir>/<variant>/<design>/<opponent>/seed_<n>/, dev_variants.csv
+  out_dir: results/mbom/dev_variants
+  log: results/mbom/dev_variants.csv
+  # DEVELOPMENT SET ONLY: exploiter_seed1 + train archetypes (never exploiter_seed0 / exploiter_seed2)
+  designs:
+    exploiter:                    # same design and seeds as gonogo (paired with its saved runs)
+      opponents: [exploiter_seed1]
+      seeds: [0, 1, 2, 3, 4]
+      matches_per_cell: 7
+      rounds: 30
+      env_seed_base: 20000
+    archetypes:
+      opponents: null             # null -> 'train' list from players.yaml
+      seeds: [0, 1, 2, 3, 4]
+      matches_per_cell: 1
+      rounds: 30
+      env_seed_base: 10000
+  reference: mbom                 # paired differences are reported vs these variants
+  compare: [mbom_no_imagination, ppo_predicted]
+  variants:                       # name, runner method, config overrides; reuse = saved run with the same design
+    - {name: mbom, method: mbom, overrides: [], reuse: {exploiter: results/mbom/gonogo}}
+    - {name: mbom_no_imagination, method: mbom_no_imagination, overrides: [], reuse: {exploiter: results/mbom/gonogo}}
+    - {name: ppo_predicted, method: ppo_predicted, overrides: [], reuse: {exploiter: results/mbom/gonogo}}
+    - {name: top_level, method: mbom, overrides: [mbom.cond_input=top_level]}
+    - {name: npc_samples4, method: mbom, overrides: [imagination.npc_samples=4]}
+    - {name: uniform_mix, method: mbom_uniform_mix, overrides: []}
+    - {name: single_level1, method: mbom_single_level1, overrides: []}
+    - {name: prior_fast, method: mbom, overrides: [mixer.prior_avg=0.7, mixer.prior_floor=0.05]}
+    - {name: prior_slow, method: mbom, overrides: [mixer.prior_avg=0.97, mixer.prior_floor=0.002]}
+    - {name: oracle_debug, method: mbom, overrides: [imagination.oracle_model=true], debug: true}   # NOT reported
+
+adaptive_test:                    # scripts/dev_variants.py --adaptive: does imagination help vs opponents that adapt?
+  out_dir: results/mbom/adaptive_test
+  opponents: [naive_learner, reasoning_learner, switcher]
+  seeds: [0, 1, 2, 3, 4]
+  matches_per_cell: 7
+  rounds: 30
+  env_seed_base: 30000
+  methods: [mbom, mbom_no_imagination, ppo_predicted]

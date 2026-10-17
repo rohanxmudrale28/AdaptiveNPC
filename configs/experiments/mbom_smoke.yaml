@@ -99,3 +99,43 @@ gonogo:
   min_gain: 0.05
   early_rounds: 2
   late_rounds: 2
+
+dev_variants:
+  out_dir: results/mbom/smoke/dev_variants
+  log: results/mbom/smoke/dev_variants.csv
+  designs:
+    exploiter:
+      opponents: [exploiter_seed1]
+      seeds: [0, 1]
+      matches_per_cell: 2
+      rounds: 4
+      env_seed_base: 20000
+    archetypes:
+      opponents: [rusher, switcher]
+      seeds: [0]
+      matches_per_cell: 1
+      rounds: 3
+      env_seed_base: 10000
+  reference: mbom
+  compare: [mbom_no_imagination, ppo_predicted]
+  variants:
+    - {name: mbom, method: mbom, overrides: [], reuse: {exploiter: results/mbom/smoke/gonogo}}
+    - {name: mbom_no_imagination, method: mbom_no_imagination, overrides: [], reuse: {exploiter: results/mbom/smoke/gonogo}}
+    - {name: ppo_predicted, method: ppo_predicted, overrides: [], reuse: {exploiter: results/mbom/smoke/gonogo}}
+    - {name: top_level, method: mbom, overrides: [mbom.cond_input=top_level]}
+    - {name: npc_samples4, method: mbom, overrides: [imagination.npc_samples=4]}
+    - {name: uniform_mix, method: mbom_uniform_mix, overrides: []}
+    - {name: single_level1, method: mbom_single_level1, overrides: []}
+    - {name: prior_fast, method: mbom, overrides: [mixer.prior_avg=0.7, mixer.prior_floor=0.05]}
+    - {name: prior_slow, method: mbom, overrides: [mixer.prior_avg=0.97, mixer.prior_floor=0.002]}
+    - {name: oracle_debug, method: mbom, overrides: [imagination.oracle_model=true], debug: true}
+    - {name: broken_on_purpose, method: mbom, overrides: [mbom.cond_input=bogus]}   # smoke only: failure logging
+
+adaptive_test:
+  out_dir: results/mbom/smoke/adaptive_test
+  opponents: [naive_learner, reasoning_learner, switcher]
+  seeds: [0]
+  matches_per_cell: 2
+  rounds: 3
+  env_seed_base: 30000
+  methods: [mbom, mbom_no_imagination, ppo_predicted]
