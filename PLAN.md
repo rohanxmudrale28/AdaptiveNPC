@@ -229,7 +229,25 @@ Conventions:
     - Start-policy row: means over the 3 seeds; damage is from greedy acting.
     - `ppo_predicted` is exploitable by offline training: every exploiter seed goes from 0.00 to 0.45–0.96 against it. Seed 1 is much weaker than seeds 0 and 2, hence the wide CIs.
     - The exploit transfers only partly: against `ppo_none` (not trained on) the exploiters are level on average (0.46–0.53, start 0.26–0.27).
-    - [ ] Cross-evaluation vs all NPC modes and seeds: `scripts/eval_exploiters.py` → `results/exploiter/cross_eval.csv` (user run)
+    - [x] Cross-evaluation vs all NPC modes and seeds: `scripts/eval_exploiters.py` → `results/exploiter/cross_eval.csv` and `cross_eval_summary.csv` (user run; 3 exploiters × 5 NPC checkpoint seeds per mode, 200 rounds per cell, stochastic acting, player-side win rate with draws = ½)
+      - Pooled over the 15 cells per mode (mean ± 95% CI; damage per round dealt / taken):
+
+        | NPC | win rate | dealt / taken |
+        |---|---|---|
+        | `ppo_none` | 0.43 ± 0.16 | 2.39 / 3.11 |
+        | `ppo_predicted` | 0.65 ± 0.16 | 3.64 / 2.51 |
+        | `ppo_oracle` | 0.11 ± 0.08 | 0.70 / 4.40 |
+
+      - Per cell vs `ppo_predicted` (win rate; † = the cell the exploiter was trained on; damage per cell is in the CSV):
+
+        | exploiter \ NPC seed | 0 | 1 | 2 | 3 | 4 | mean of unseen (1–4) |
+        |---|---|---|---|---|---|---|
+        | exploiter_seed0 | 0.920 † | 0.338 | 0.995 | 0.935 | 0.193 | 0.615 |
+        | exploiter_seed1 | 0.578 † | 0.740 | 0.933 | 0.740 | 0.690 | 0.776 |
+        | exploiter_seed2 | 0.950 † | 0.413 | 0.073 | 0.795 | 0.533 | 0.453 |
+
+        The † cells differ slightly from the `results/exploiter/main` table above (e.g. 0.920 vs 0.958) because the cross-eval uses different env seeds.
+      - Finding: the exploit transfers on average (about 0.61 over the 12 unseen `ppo_predicted` cells, 8 of 12 above 0.5) but unevenly (0.07 to 0.995), and different exploiters beat different NPC seeds. For example, NPC seed 2 loses 0.995 and 0.933 to exploiters 0 and 1 but beats exploiter 2 (0.073), while NPC seed 4 beats exploiter 0 (0.193) but not exploiter 1 (0.690). Against `ppo_oracle`, which sees the exploiter's true next action, the exploit fails (0.11).
   - [ ] (Optional) Retrain the NPC with learner snapshots in the opponent pool
   - [x] Commit
 
@@ -341,6 +359,7 @@ Conventions:
 - **Win rate saturates at about 100% against the fixed archetypes** for all three PPO modes (none, predicted, oracle), so win rate cannot separate them there. The comparison relies on the other metrics (episode length, damage taken, win rate over the first N rounds, prediction accuracy) and on the learning and switching opponents.
 - **Learners can't beat `ppo_predicted`.** Over a 30-round match, `ppo_predicted` wins about 90–100% against every learner and every LR / update-frequency setting (learner scores 0.00–0.10; verdict "lose" for all). Online learning shows up only as small within-match gains (last 10 − first 10 rounds up to about +0.17). Against `ppo_none` the learners are level (verdict "match", scores 0.2–0.6 with wide CIs); against `scripted` they win 0.88–1.00.
 - **The exploit exists but is out of reach online.** Offline exploiters, starting from the same pretrained naive policy, beat `ppo_predicted` (win rate 0.70–0.81 mean over 3 seeds), but they needed 1M training steps. A 30-round match gives an online learner only about 600–1,000 steps, roughly 0.1% of that budget, so the learners can't find the exploit within a match. The online learners' "lose" verdict vs `ppo_predicted` reflects the match budget, not an unexploitable NPC.
+- **Cross-eval cells aren't independent samples.** The 15 cells per NPC mode cross 3 exploiters with 5 NPC checkpoints, so every exploiter appears in 5 cells and every NPC seed in 3. The pooled 95% CI treats the 15 cells as independent (t-interval, 14 df), so it understates the uncertainty. The real sample sizes are 3 exploiters and 5 NPC seeds, and the cell-to-cell spread (0.07–0.995 vs `ppo_predicted`) mixes exploiter effects, NPC-seed effects and their interaction, which 15 cells can't separate. Read the pooled numbers as descriptive, and use the per-cell table.
 - **KL is uninformative for near-deterministic policies.** The pretrained learners' entropy is only about 0.07–0.3 nats (maximum ln 8 ≈ 2.08). With so little probability mass off the argmax, small logit changes give large KL(π_start ‖ π_end): even the smallest LR gives 0.2–3.2 nats, far above `kl_min` = 0.05, so the threshold passes trivially. KL is reported, but the per-round score, damage and entropy are the meaningful signals. KL above `kl_min` does not mean the learner adapted usefully.
 
 ---
