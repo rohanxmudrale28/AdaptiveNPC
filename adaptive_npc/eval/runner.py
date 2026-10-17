@@ -9,12 +9,15 @@ from pathlib import Path
 
 import numpy as np
 
+from adaptive_npc.config import load_config
 from adaptive_npc.env.gym_env import NPCEnv
 from adaptive_npc.eval.metrics import aggregate, summarize_rounds
 from adaptive_npc.logging_utils import save_run_metadata
 from adaptive_npc.npc.mbom.agent import build_mbom
-from adaptive_npc.npc.ppo_npc import ConditionFactory, PolicyNPC, model_path
+from adaptive_npc.npc.ppo_npc import ConditionFactory, PolicyNPC, PolicyPlayer, model_path
 from adaptive_npc.players.base import RandomPlayer
+from adaptive_npc.players.naive_learner import NaiveLearner
+from adaptive_npc.players.reasoning_learner import ReasoningLearner
 from adaptive_npc.players.scripted import make_player
 
 
@@ -78,6 +81,37 @@ def build_npc(cfg, env_cfg, players_cfg, method, seed, base_env, npc_seed):
     return base_env, act_fn, npc.reset
 
 
+def learner_entry(chosen_csv, kind, expected):
+    """(lr, update_every) of the chosen online setting for learner `kind` ('naive' / 'reasoning') in chosen.csv;
+    fails if the chosen entry is not `expected` (so a re-run of check_learner_drift cannot change it silently)."""
+    with open(chosen_csv, encoding="utf-8") as f:
+        row = next(r for r in csv.DictReader(f) if r["learner"] == kind)
+    if row["chosen_entry"] != expected:
+        raise ValueError(f"{chosen_csv}: chosen entry for {kind} is {row['chosen_entry']!r}, config expects {expected!r}")
+    return float(row["lr"]), int(row["update_every"])
+
+
+def make_opponent(cfg, name, players_cfg, env_cfg, cell_seed, opp_seed):
+    """Archetypes via make_player; plus (cfg 'opponents' block):
+      exploiter_seed<k>              frozen exploiter <exploiter_dir>/exploiter_seed<k>.pt, stochastic, no updates
+      naive_learner / reasoning_learner  pretrained learner (checkpoint seed = cell seed mod len(learner_seeds)),
+                                     updating online with the chosen setting from learners_chosen (check_learner_drift)."""
+    oc = cfg.get("opponents") or {}
+    if name.startswith("exploiter_seed"):
+        return PolicyPlayer(f"{oc['exploiter_dir']}/{name}.pt", deterministic=False, seed=opp_seed)
+    if name in ("naive_learner", "reasoning_learner"):
+        kind = name.split("_")[0]
+        lr, ue = learner_entry(oc["learners_chosen"], kind, oc["learner_entry"])
+        lcfg = load_config(oc["learners_config"])
+        lseed = int(oc["learner_seeds"][int(cell_seed) % len(oc["learner_seeds"])])
+        ppo, lc = {**lcfg["ppo_lite"], "lr": lr}, lcfg["learners"]
+        if kind == "naive":
+            return NaiveLearner(lc["naive"]["policy"].format(seed=lseed), ppo, ue, True, opp_seed)
+        return ReasoningLearner(lc["reasoning"]["policy"].format(seed=lseed), lc["reasoning"]["npc_model"], ppo, ue,
+                                lc["gru_online"], True, opp_seed)
+    return make_player(name, players_cfg, env_cfg, opp_seed)
+
+
 def trace_summary(trace):
     """Step-weighted match means of the MBOM per-round trace (prediction accuracy / NLL, input drift)."""
     w = np.array([r["steps"] for r in trace], dtype=float)
@@ -88,7 +122,7 @@ def trace_summary(trace):
 def run_cell(cfg, env_cfg, players_cfg, method, opponent, seed):
     ev = cfg["eval"]
     env_seed = int(ev["env_seed_base"]) + int(seed)
-    opp = make_player(opponent, players_cfg, env_cfg, env_seed + 1)
+    opp = make_opponent(cfg, opponent, players_cfg, env_cfg, seed, env_seed + 1)
     base_env = NPCEnv(env_cfg, opponent=opp, seed=env_seed)
     env, act_fn, on_round_start = build_npc(cfg, env_cfg, players_cfg, method, seed, base_env, env_seed + 2)
     rounds = play_match(env, act_fn, int(ev["rounds"]), env_seed, on_round_start)

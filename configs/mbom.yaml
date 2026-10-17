@@ -88,3 +88,10 @@ benchmark:                        # scripts/benchmark_mbom.py -> <out_dir>/mbom_
     same_cost_as: {mbom_single_level2: mbom, mbom_uniform_mix: mbom}
     methods: [mbom, mbom_random_finetune, mbom_single_level1, mbom_single_level2, mbom_uniform_mix,
               mbom_no_imagination, ppo_predicted]
+
+opponents:                        # non-archetype opponents for the runner (adaptive_npc/eval/runner.py make_opponent)
+  exploiter_dir: models/exploiter # exploiter_seed<k>.pt: frozen, stochastic acting, no updates
+  learners_config: configs/learners.yaml
+  learners_chosen: results/learners/main/chosen.csv   # online setting chosen by check_learner_drift (M9)
+  learner_entry: lr3e-4_u64       # must match chosen.csv (checked at build time)
+  learner_seeds: [0, 1, 2]        # learner checkpoint = NPC seed mod 3; learners update online, fresh each match

@@ -427,3 +427,41 @@ def test_mbom_grid_smoke_writes_trace_and_is_deterministic(tmp_path):
         assert "acc_mixed" in rows[0] and "acc_mixed" not in rows[1]
         assert len(trace) == 2 and sum(int(r["updates"]) for r in trace) >= 1
     assert outs[0] == outs[1]
+
+
+# ---- runner opponents: frozen exploiters and online learners ----
+
+OPP_CKPTS = ("models/exploiter/exploiter_seed1.pt", "models/learners/none_seed0.pt",
+             "models/learners/predicted_seed0.pt", "models/learners/npc_model.pt", "results/learners/main/chosen.csv")
+
+
+@pytest.mark.skipif(not all(Path(p).exists() for p in CKPTS + OPP_CKPTS), reason="needs the trained checkpoints")
+@pytest.mark.parametrize("opponent", ["exploiter_seed1", "naive_learner", "reasoning_learner"])
+def test_runner_builds_and_plays_new_opponents(opponent):
+    from adaptive_npc.eval.runner import make_opponent, run_cell
+    from adaptive_npc.npc.ppo_npc import PolicyPlayer
+    from adaptive_npc.players.naive_learner import NaiveLearner
+    from adaptive_npc.players.reasoning_learner import ReasoningLearner
+    from scripts.eval_mbom import prepare
+    cfg = prepare(load_config("configs/experiments/mbom_smoke.yaml", ["eval.rounds=1", "mbom.update_every=10"]))
+    players = load_config(cfg["players_config"])
+    opp = make_opponent(cfg, opponent, players, ENV, 0, 1)
+    kind = {"exploiter_seed1": PolicyPlayer, "naive_learner": NaiveLearner, "reasoning_learner": ReasoningLearner}
+    assert type(opp) is kind[opponent]
+    if opponent == "exploiter_seed1":
+        assert not opp.det and opp.predictor is None  # stochastic, frozen (no observe-driven updates)
+    else:
+        assert opp.learns
+    for method in ("ppo_predicted", "mbom"):
+        rounds, trace = run_cell(cfg, ENV, players, method, opponent, 0)
+        assert len(rounds) == 1 and rounds[0]["steps"] > 0 and rounds[0]["winner"] in (-1, 0, 1)
+        assert (trace is not None) == (method == "mbom")
+
+
+@pytest.mark.skipif(not Path("results/learners/main/chosen.csv").exists(), reason="needs chosen.csv")
+def test_learner_entry_matches_chosen_setting():
+    from adaptive_npc.eval.runner import learner_entry
+    assert learner_entry("results/learners/main/chosen.csv", "naive", "lr3e-4_u64") == (3e-4, 64)
+    assert learner_entry("results/learners/main/chosen.csv", "reasoning", "lr3e-4_u64") == (3e-4, 64)
+    with pytest.raises(ValueError):
+        learner_entry("results/learners/main/chosen.csv", "naive", "lr1e-3_u32")
