@@ -223,7 +223,21 @@ Conventions:
   - [x] Test: the mixer converges to the generating level on synthetic data, follows a switch, respects the α cap, and the mode flags hold α fixed
   - [x] Test: imagination finds the known best response in two hand-built states. Ground truth is brute force over all continuations with the true rules, and the learned Γ gives the same argmax and Q. Also tested: the done mask, the shared NPC samples, determinism and chunk independence.
   - [x] Tests: ablation flags, `cond_input` modes, agent determinism, a grid smoke run (deterministic across two runs)
-  - [x] `scripts/benchmark_mbom.py`: seconds per update (Γ / GRU / policy breakdown) and per 30-round match, plus an M10 projection (`results/benchmarks/mbom_speed.csv`, `mbom_m10_projection.csv`). Smoke-tested. Full run: user.
+  - [x] `scripts/benchmark_mbom.py`: seconds per update (Γ / GRU / policy breakdown) and per 30-round match, plus an M10 projection (`results/benchmarks/mbom_speed.csv`, `mbom_m10_projection.csv`)
+    - Measured (user run; NPC seed 0, 30 rounds vs rusher / switcher / kiter / counter_puncher; 557–1,126 real steps per match):
+
+      | method | per match, 10 threads | per match, 1 thread | per update, 10 / 1 threads |
+      |---|---|---|---|
+      | `mbom` | 23–56 s (mean 38) | 48–113 s (mean 77) | ≈ 2.0–2.7 s / 4.2–5.5 s |
+      | `mbom_single_level1` | 16–30 s (mean 21) | 29–59 s (mean 43) | ≈ 1.25 s / 2.6 s |
+      | `mbom_random_finetune` | 3–6 s | 3–6 s | ≈ 0.12 s |
+      | `mbom_no_imagination` | 1–4 s | 2–4 s | ≈ 0.02–0.04 s |
+      | `ppo_predicted` | 1.5–2.7 s | 1.4–2.6 s | – |
+
+    - A full update on a 256-entry buffer takes ≈ 3.0 s at 10 threads and ≈ 6.3 s at 1 thread, against the analytic estimate of 1–3 s. One thread is only about 2× slower than 10, so parallel processes at 1 thread each are the efficient way to run the grid.
+    - **The IOP GRU dominates update time:** 1.8 s of 3.0 (≈ 60%; 4.0 of 6.3 s at 1 thread). Γ takes 0.7–0.9 s (≈ 27%), the policy ≈ 0.1 s, and the rest (finetuning, bookkeeping) 0.24–0.45 s. The obvious speedup, if needed, is the 8-step GRU window recomputed on every imagined step.
+    - **`random_finetune` is cheap because it skips imagination.** It only finetunes on random labels, about 0.12 s per update, so it costs about as much as `no_imagination` and doesn't need the same compute as MBOM.
+    - `single_level=1` costs about half of MBOM (one imagined level instead of two). `single_level=2` and `uniform_mix` build both levels and cost the same as MBOM.
   - [ ] Go/no-go, `scripts/gonogo_mbom.py`: MBOM vs `ppo_predicted` vs `no_imagination` on the development exploiter (`exploiter_seed1`) against NPC seeds 0–4, 200 rounds per cell (user run)
   - [ ] Commit
 - [x] **M9 Learning opponents** (built before M7/M8)
@@ -297,7 +311,11 @@ Conventions:
   - [ ] Opponents: fixed archetypes, switcher, naive, reasoning, held-out, frozen exploiter
     - Frozen exploiter: `models/exploiter/exploiter_seed{0,1,2}.pt` (from `scripts/train_exploiter.py`), loaded as a `PolicyPlayer` with stochastic acting, no online updates. It is a known counter to `ppo_predicted`, so it tests whether an NPC (in particular MBOM) can adapt to an opponent that already exploits it.
     - **Development exploiter: `exploiter_seed1`.** It is used for tuning only (mixer temperature and similar), together with the train archetypes, and is excluded from the final claims. Final exploiter claims use `exploiter_seed0` and `exploiter_seed2`.
-  - [ ] Compute: 5 imagination methods × ~13 opponents × 5 seeds ≈ 325 imagination matches. The M8 analytic estimate is 0.5–1.5 min each, about 3–8 h in one process or about 0.5–1.5 h over 6 processes. `benchmark_mbom.py` replaces this estimate with measured numbers. The baselines and `no_imagination` take seconds per match.
+  - [ ] Compute (measured in M8, `results/benchmarks/mbom_m10_projection.csv`): 7 methods × 13 opponents × 5 seeds = 455 matches.
+    - The 5 imagination methods make up 325 of them, but `random_finetune` skips imagination, so only 4 are expensive.
+    - Mean match time: `mbom` / `single_level=2` / `uniform_mix` 38 s at 10 threads (77 s at 1), `single_level=1` 21 s (43 s), `random_finetune` 4 s, `no_imagination` and `ppo_predicted` 2 s. `ppo_none` and `scripted` are also seconds per match.
+    - **Total ≈ 2.6 h in one process at 10 threads, or ≈ 0.85 h over 6 processes at 1 thread each** (5.1 h at 1 thread in one process).
+    - Caveats: the timed opponents were the archetypes. Learner and exploiter matches may run longer (more steps, so more updates) and should be checked in the first M10 cells. The timing is from one machine.
   - [ ] Seeds: [0, 1, 2, 3, 4]
   - [ ] Metrics: win rate, return, prediction accuracy/KL, adaptation time after a switch
   - [ ] Commit configs and results
