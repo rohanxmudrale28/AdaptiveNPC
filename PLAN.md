@@ -238,7 +238,20 @@ Conventions:
     - **The IOP GRU dominates update time:** 1.8 s of 3.0 (≈ 60%; 4.0 of 6.3 s at 1 thread). Γ takes 0.7–0.9 s (≈ 27%), the policy ≈ 0.1 s, and the rest (finetuning, bookkeeping) 0.24–0.45 s. The obvious speedup, if needed, is the 8-step GRU window recomputed on every imagined step.
     - **`random_finetune` is cheap because it skips imagination.** It only finetunes on random labels, about 0.12 s per update, so it costs about as much as `no_imagination` and doesn't need the same compute as MBOM.
     - `single_level=1` costs about half of MBOM (one imagined level instead of two). `single_level=2` and `uniform_mix` build both levels and cost the same as MBOM.
-  - [ ] Go/no-go, `scripts/gonogo_mbom.py`: MBOM vs `ppo_predicted` vs `no_imagination` on the development exploiter (`exploiter_seed1`) against NPC seeds 0–4, 200 rounds per cell (user run)
+  - [ ] Go/no-go, `scripts/gonogo_mbom.py`: MBOM vs `ppo_predicted` vs `no_imagination` on the development exploiter (`exploiter_seed1`) against NPC seeds 0–4 (user run)
+    - **Criterion (fixed before any run):**
+      - Design: 5 cells (NPC seeds 0–4) × 7 matches per cell. A match is 30 rounds with fresh MBOM state (IOPs, mixer, buffer); the `ppo_predicted` predictor is also fresh, and the exploiter is frozen. That gives 210 rounds per cell per method.
+      - Methods: `mbom` (default config), `mbom_no_imagination`, and `ppo_predicted` with its own online predictor setting (`predictor.yaml` `online`).
+      - Pairing: match i of a cell uses the same env seed and exploiter seed for every method, so methods are compared match by match.
+      - Win rate counts draws as ½.
+      - **GO** if MBOM's mean win rate over the 5 cells beats `ppo_predicted`'s by at least 5 points, **and** the lower bound of the 95% t-interval of the paired per-match difference (MBOM − `ppo_predicted`, 35 matches) is above 0. Otherwise **NO-GO**.
+    - Also reported, but not part of the decision:
+      - MBOM vs `no_imagination`, with the same paired statistics. This isolates imagination, since both share the φ0 online schedule.
+      - Each method's win rate in rounds 1–5 vs rounds 26–30 (adaptation within a match).
+      - Per-cell win rates, damage, and the MBOM trace means (α, per-level accuracy, input drift).
+    - Caveats:
+      - **Development signal, not a final claim.** `exploiter_seed1` is the development exploiter, so the go/no-go result and any tuning it triggers are excluded from the final claims (which use `exploiter_seed0` / `exploiter_seed2`).
+      - The 7 matches in a cell share one NPC checkpoint, so the 35 paired differences aren't independent and the CI understates the uncertainty (as in the cross-eval). Per-cell differences are reported too.
   - [ ] Commit
 - [x] **M9 Learning opponents** (built before M7/M8)
   - [x] `ppo_lite.py`: trains the SB3 `ActorCriticPolicy` loaded from a `.pt` in place (GAE, clip, normalized advantages, `target_kl` early stop, grad clip, `critic_warmup_updates`)
