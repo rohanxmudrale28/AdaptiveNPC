@@ -1,0 +1,34 @@
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+predictor_checkpoint: models/learners_smoke/npc_model.pt
+ppo:
+  net_arch:
+  - 32
+  - 32
+  hparams:
+    learning_rate: 0.0003
+    n_steps: 64
+    batch_size: 128
+    n_epochs: 2
+    gamma: 0.99
+    gae_lambda: 0.95
+    clip_range: 0.2
+    ent_coef: 0.01
+    vf_coef: 0.5
+train:
+  modes:
+  - none
+  - predicted
+  seeds:
+  - 0
+  - 1
+  total_timesteps: 4096
+  n_envs: 4
+  vec_env_type: dummy
+  opponents:
+  - scripted_npc
+  log_every: 1024
+  model_dir: models/learners_smoke
+  out_dir: results/learners/smoke/pretrain
+mode: predicted

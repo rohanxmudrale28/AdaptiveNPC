@@ -1,0 +1,25 @@
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+data:
+  dir: data/learners_npc_model_smoke
+  npcs:
+  - random
+  - scripted_npc
+  archetypes:
+  - scripted_npc
+  rounds_per_archetype: 20
+  val_rounds_per_archetype: 6
+  train_seed_base: 2000
+  val_seed_base: 6000
+model:
+  hidden: 32
+  layers: 1
+  window: 8
+train:
+  lr: 0.002
+  batch_size: 128
+  epochs: 3
+  checkpoint: models/learners_smoke/npc_model.pt
+eval:
+  out_dir: results/learners/smoke/pretrain/npc_model

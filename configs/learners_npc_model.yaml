@@ -1,0 +1,30 @@
+# Reasoning learner's GRU model of the NPC. Same keys as configs/predictor.yaml; run with
+#   python -m scripts.train_predictor --config configs/learners_npc_model.yaml
+# The "archetype" slot plays scripted_npc, so the labels are scripted-NPC actions. Observations are
+# mirror-symmetric, so the model is used unchanged from the player side (player-view obs).
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+
+data:
+  dir: data/learners_npc_model
+  npcs: [random, scripted_npc]       # behaviour of the learner side while recording
+  archetypes: [scripted_npc]         # the side being modelled
+  rounds_per_archetype: 400
+  val_rounds_per_archetype: 80
+  train_seed_base: 2000
+  val_seed_base: 6000
+
+model:
+  hidden: 64
+  layers: 1
+  window: 8
+
+train:
+  lr: 0.001
+  batch_size: 256
+  epochs: 20
+  checkpoint: models/learners/npc_model.pt
+
+eval:
+  out_dir: results/learners/pretrain/npc_model

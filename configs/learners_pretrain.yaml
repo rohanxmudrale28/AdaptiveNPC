@@ -1,0 +1,33 @@
+# Pretraining of the learning players (SB3 PPO vs scripted_npc). Same keys as configs/npc_ppo.yaml; run with
+#   python -m scripts.train_npc --config configs/learners_pretrain.yaml
+# The agent plays slot 0 here and slot 1 in matches (mirror-symmetric obs, no side bias, M3).
+#   none_seed<n>.pt       -> naive learner start policy
+#   predicted_seed<n>.pt  -> reasoning learner start policy (obs + predicted NPC action from npc_model.pt)
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+predictor_checkpoint: models/learners/npc_model.pt   # GRU model of the opponent (train via learners_npc_model.yaml first)
+
+ppo:
+  net_arch: [64, 64]
+  hparams:
+    learning_rate: 0.0003
+    n_steps: 256
+    batch_size: 256
+    n_epochs: 10
+    gamma: 0.99
+    gae_lambda: 0.95
+    clip_range: 0.2
+    ent_coef: 0.01
+    vf_coef: 0.5
+
+train:
+  modes: [none, predicted]
+  seeds: [0, 1, 2]
+  total_timesteps: 1000000
+  n_envs: 8
+  vec_env_type: dummy
+  opponents: [scripted_npc]
+  log_every: 20000
+  model_dir: models/learners
+  out_dir: results/learners/pretrain
