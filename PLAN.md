@@ -186,13 +186,25 @@ Conventions:
   - [x] Tests (`tests/test_env_model.py`): oracle simulator replays the core exactly; Γ rollouts vs the true simulator; checkpoint round trip. `oracle_model` flag: `--set oracle_model=true` evaluates the true simulator (100% by construction).
   - [x] Commit
 - [ ] **M8 MBOM**
-  - [ ] `iops.py`: φ0 is the pretrained predictor
+  - [x] `npc/mbom/state_obs.py`: batched raw state → observation for imagined states (bit-exact vs `encode`)
+  - [ ] Distribution-shift probe, `scripts/probe_cond_shift.py` (config `probe:` in `configs/mbom.yaml`). The frozen `ppo_predicted` gets a transformed conditioning vector instead of raw φ0, vs the train archetypes, 5 NPC seeds × 30 rounds, same env seeds per variant (paired). Variants: φ0 (control), smoothed toward uniform (λ 0.25 / 0.5), `mix_sharp` (½ φ0 + ½ sharpened φ0), `mix_perm` (½ φ0 + ½ φ0 with permuted actions), `mix_alpha_cap` (0.79 φ0 + 0.21 permuted), oracle one-hot.
+    - **Pass criterion (fixed before the run):** switch `mbom.cond_input` from `mix` to `top_level` or `sample_level` if the pooled win rate (draws = ½) vs the train archetypes of any mixed-input variant (`mix_sharp`, `mix_perm`, `mix_alpha_cap`) drops more than 5 points below raw φ0 (paired mean drop > 0.05). Otherwise keep `mix`.
+    - Caveat: `ppo_predicted` wins about 100% vs the train archetypes, so win rate can only fall. Damage taken and the action-change rate are reported as well, but they don't enter the decision.
+  - [ ] `iops.py`: φ0 is the pretrained predictor, finetuned online (lr 1e-3, 3 steps every 50 real steps on the last 256). φ1 and φ2 start each match as copies of φ0 and are finetuned incrementally on soft best-response targets softmax(Q/τ), τ = 0.1.
   - [ ] `imagination.py`: eq. (5), batched in torch
+    - `score_agg: max | mean`. With `max` (the default if it is cheap), the NPC's sampled actions are shared across all candidate opponent continuations, so the NPC's sampling noise is averaged out, and the max is taken only over the opponent's continuations.
+    - `imagined_npc: stochastic | greedy` sets the NPC action convention in imagination. Both it and the evaluation convention (`eval.deterministic`) are recorded in the results config.
   - [ ] `mixer.py`: eq. (6–8)
   - [ ] `agent.py`: online loop (Alg. 1). The policy is the frozen `predicted` PPO, fed the mixed IOP.
   - [ ] Ablation flags: `no_imagination`, `random_finetune` (BM), `single_level=m`, `uniform_mix`
+  - [ ] Per-round log:
+    - mixer weights α over the levels (α_max is capped at about 0.79 by T = 0.5; this is noted in the trace)
+    - per-level IOP prediction accuracy
+    - policy input drift: entropy and max-prob of the policy input vs φ0, and the fraction of steps where the policy's argmax differs from π(·|φ0)
   - [ ] Test: the mixer converges to the generating level on synthetic data
   - [ ] Test: imagination finds the known best response in a hand-built state
+  - [ ] `scripts/benchmark_mbom.py`: seconds per update and per 30-round match, which sizes M10 (user run)
+  - [ ] Go/no-go, `scripts/gonogo_mbom.py`: MBOM vs `ppo_predicted` vs `no_imagination` on the development exploiter (`exploiter_seed1`) against NPC seeds 0–4, 200 rounds per cell (user run)
   - [ ] Commit
 - [x] **M9 Learning opponents** (built before M7/M8)
   - [x] `ppo_lite.py`: trains the SB3 `ActorCriticPolicy` loaded from a `.pt` in place (GAE, clip, normalized advantages, `target_kl` early stop, grad clip, `critic_warmup_updates`)
@@ -258,9 +270,14 @@ Conventions:
 
 ### Tier 3 — Experiments
 - [ ] **M10 Experiment grid**
-  - [ ] Methods: scripted, PPO, pred-PPO, MBOM, and 4 ablations
+  - [ ] Methods:
+    - baselines: `scripted`, `ppo_none`, `ppo_predicted` (with its own online predictor setting)
+    - MBOM and its ablations: `no_imagination`, plus five imagination methods (`mbom`, `random_finetune`, `single_level=1`, `single_level=2`, `uniform_mix`)
+    - `ppo_predicted` vs `no_imagination` isolates the φ0 online schedule, and `no_imagination` vs `mbom` isolates what imagination adds.
   - [ ] Opponents: fixed archetypes, switcher, naive, reasoning, held-out, frozen exploiter
     - Frozen exploiter: `models/exploiter/exploiter_seed{0,1,2}.pt` (from `scripts/train_exploiter.py`), loaded as a `PolicyPlayer` with stochastic acting, no online updates. It is a known counter to `ppo_predicted`, so it tests whether an NPC (in particular MBOM) can adapt to an opponent that already exploits it.
+    - **Development exploiter: `exploiter_seed1`.** It is used for tuning only (mixer temperature and similar), together with the train archetypes, and is excluded from the final claims. Final exploiter claims use `exploiter_seed0` and `exploiter_seed2`.
+  - [ ] Compute: 5 imagination methods × ~13 opponents × 5 seeds ≈ 325 imagination matches. The M8 analytic estimate is 0.5–1.5 min each, about 3–8 h in one process or about 0.5–1.5 h over 6 processes. `benchmark_mbom.py` replaces this estimate with measured numbers. The baselines and `no_imagination` take seconds per match.
   - [ ] Seeds: [0, 1, 2, 3, 4]
   - [ ] Metrics: win rate, return, prediction accuracy/KL, adaptation time after a switch
   - [ ] Commit configs and results

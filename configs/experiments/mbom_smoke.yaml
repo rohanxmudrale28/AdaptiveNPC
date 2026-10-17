@@ -1,0 +1,24 @@
+# Smoke config for M8 MBOM scripts (~1 min). Same keys as configs/mbom.yaml; uses the real checkpoints.
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+predictor_checkpoint: models/predictor.pt
+model_dir: models/npc
+
+probe:
+  out_dir: results/mbom/smoke/probe_cond_shift
+  opponents: [rusher, switcher]
+  seeds: [0, 1]
+  rounds: 3
+  env_seed_base: 10000
+  deterministic: true
+  variants:
+    - {name: phi0, kind: phi0}
+    - {name: smooth50, kind: smooth, lam: 0.5}
+    - {name: mix_sharp, kind: mix_sharp, w: 0.5, temp: 0.25}
+    - {name: mix_perm, kind: mix_perm, w: 0.5}
+    - {name: mix_alpha_cap, kind: mix_perm, w: 0.79}
+    - {name: oracle, kind: oracle}
+  control: phi0
+  decision_variants: [mix_sharp, mix_perm, mix_alpha_cap]
+  max_drop: 0.05

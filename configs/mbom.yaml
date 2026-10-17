@@ -1,0 +1,31 @@
+# M8 MBOM. Policy = frozen ppo_predicted (<model_dir>/predicted_seed<n>.pt), φ0 = the GRU predictor.
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+predictor_checkpoint: models/predictor.pt
+model_dir: models/npc
+
+# Distribution-shift probe (scripts/probe_cond_shift.py): the frozen ppo_predicted gets a transformed
+# conditioning vector instead of raw φ0 (frozen), vs the train archetypes. Same env seeds per variant (paired).
+probe:
+  out_dir: results/mbom/probe_cond_shift
+  opponents: null                 # null -> 'train' list from players.yaml
+  seeds: [0, 1, 2, 3, 4]          # NPC checkpoint seed; env seed = env_seed_base + seed (as in eval_npc)
+  rounds: 30
+  env_seed_base: 10000
+  deterministic: true             # greedy NPC actions (eval convention)
+  # kinds: phi0 | smooth (lam: (1-lam)·φ0 + lam·uniform) | mix_sharp (w·φ0 + (1-w)·sharpen(φ0, temp))
+  #        | mix_perm (w·φ0 + (1-w)·φ0 with actions permuted by a fixed per-cell derangement) | oracle (true one-hot)
+  variants:
+    - {name: phi0, kind: phi0}
+    - {name: smooth25, kind: smooth, lam: 0.25}
+    - {name: smooth50, kind: smooth, lam: 0.5}
+    - {name: mix_sharp, kind: mix_sharp, w: 0.5, temp: 0.25}
+    - {name: mix_perm, kind: mix_perm, w: 0.5}
+    - {name: mix_alpha_cap, kind: mix_perm, w: 0.79}   # dominant level at the mixer's α cap, rest disagreeing
+    - {name: oracle, kind: oracle}
+  control: phi0
+  # Pass criterion (PLAN.md, M8): switch mbom.cond_input to top_level / sample_level if the pooled win rate
+  # (draws = 1/2) of any decision variant drops more than max_drop below the control.
+  decision_variants: [mix_sharp, mix_perm, mix_alpha_cap]
+  max_drop: 0.05
