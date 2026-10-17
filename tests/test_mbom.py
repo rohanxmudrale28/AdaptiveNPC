@@ -1,12 +1,20 @@
 """M8: MBOM components (no checkpoints needed unless marked)."""
+import itertools
+from pathlib import Path
+
 import numpy as np
 import pytest
 import torch
+import torch.nn.functional as F
 
 from adaptive_npc.config import load_config
+from adaptive_npc.env.actions import Action
 from adaptive_npc.env.core import ArenaGame
 from adaptive_npc.env.observations import encode
-from adaptive_npc.models.env_model import STATE_DIM, EnvSpec, raw_state
+from adaptive_npc.models.env_model import STATE_DIM, EnvSpec, TrueSimulator, load_env_model, raw_state
+from adaptive_npc.models.player_model import FEAT_DIM, PlayerPredictor
+from adaptive_npc.npc.mbom.imagination import aggregate_q, br_targets, imagined_returns
+from adaptive_npc.npc.mbom.iops import IOPSet
 from adaptive_npc.npc.mbom.mixer import BayesMixer
 from adaptive_npc.npc.mbom.state_obs import encode_raw
 
@@ -134,3 +142,148 @@ def test_mixer_mix_is_alpha_weighted_and_reset_restores_uniform():
     assert mixer.mix(levels).sum() == pytest.approx(1.0)
     mixer.reset()
     assert np.allclose(mixer.alpha, 1 / 3)
+
+
+# ---- imagination (eq. 5): known best responses in hand-built states ----
+
+GAMMA = 0.99
+#          x0 y0 x1 y1 f0 f1 hp0 hp1 sta0 sta1 cd0 cd1 stun0 stun1 t
+# NPC at (4,4) facing right, opponent adjacent at (5,4) facing left (each in the other's front tile).
+STUNNED = [4, 4, 5, 4, 3, 2, 1, 5, 6, 6, 0, 0, 2, 0, 10]  # NPC stunned with 1 HP: attacking wins at once
+DUEL = [4, 4, 5, 4, 3, 2, 1, 1, 6, 6, 0, 0, 0, 0, 10]     # both 1 HP, NPC always attacks: block (parry), then hit
+
+
+def stub_npc(action, value=0.0):
+    """NPC model that always plays `action`, with a constant value."""
+    def probs(x):
+        return F.one_hot(torch.full((x.shape[0],), action), 8).float()
+
+    def val(x):
+        return torch.full((x.shape[0],), float(value))
+    return probs, val
+
+
+def uniform_iop(wins):
+    return torch.full((wins.shape[0], 8), 1 / 8)
+
+
+def brute_force_q(state, npc_action, k=2, value=0.0):
+    """Exact max over all 8^k opponent continuations with the true rules and a constant-action NPC."""
+    sim = TrueSimulator(ENV)
+    q = np.full(8, -np.inf)
+    for c in range(8):
+        for cont in itertools.product(range(8), repeat=k):
+            s, g, alive = np.array([state], np.int16), 0.0, True
+            for t, a in enumerate((c,) + cont):
+                s, r, d = sim.step(s, [npc_action], [a])
+                g += GAMMA ** t * alive * -float(r[0])
+                alive = alive and not d[0]
+            g += GAMMA ** (k + 1) * alive * -value
+            q[c] = max(q[c], g)
+    return q
+
+
+def imagine(model, state, npc_action, opp_samples, value=0.0, seed=0, **kw):
+    probs, val = stub_npc(npc_action, value)
+    raw = torch.tensor([state])
+    win = torch.zeros(1, 8, FEAT_DIM)
+    return imagined_returns(model, SPEC, probs, val, uniform_iop, raw, win, torch.Generator().manual_seed(seed),
+                            k=2, opp_samples=opp_samples, gamma=GAMMA, **kw)
+
+
+@pytest.mark.parametrize("state,npc_action,best", [(STUNNED, Action.IDLE, Action.ATTACK),
+                                                   (DUEL, Action.ATTACK, Action.BLOCK)])
+def test_imagination_finds_known_best_response_true_simulator(state, npc_action, best):
+    truth = brute_force_q(state, npc_action)
+    assert truth.argmax() == best  # the hand-built case is what we think it is
+    q = aggregate_q(imagine(TrueSimulator(ENV), state, npc_action, opp_samples=64), "max")[0].numpy()
+    assert q.argmax() == best
+    assert np.all(q <= truth + 1e-5)  # sampled continuations can only miss the best one
+    assert q[best] == pytest.approx(truth[best], abs=1e-5)
+    assert br_targets(torch.tensor(q)[None], 0.1)[0].argmax() == best
+
+
+@pytest.mark.skipif(not Path("models/env_model.pt").exists(), reason="needs the trained Γ checkpoint")
+@pytest.mark.parametrize("state,npc_action,best", [(STUNNED, Action.IDLE, Action.ATTACK),
+                                                   (DUEL, Action.ATTACK, Action.BLOCK)])
+def test_imagination_finds_known_best_response_learned_gamma(state, npc_action, best):
+    gamma_model = load_env_model("models/env_model.pt")
+    q = aggregate_q(imagine(gamma_model, state, npc_action, opp_samples=64), "max")[0].numpy()
+    assert q.argmax() == best
+    assert q[best] == pytest.approx(brute_force_q(state, npc_action)[best], abs=1e-4)
+
+
+def test_done_mask_zeroes_rewards_and_bootstrap_after_terminal():
+    # attacking ends the round at t = 0 (opponent wins): every continuation must score exactly r_0, even though the
+    # simulator keeps stepping the finished state and the NPC's value is large
+    G = imagine(TrueSimulator(ENV), STUNNED, Action.IDLE, opp_samples=16, value=5.0)
+    win_r = -(SPEC.r_loss - abs(ENV["reward"]["damage_taken"]))  # opponent's reward for the killing hit
+    assert torch.allclose(G[0, Action.ATTACK], torch.tensor(win_r, dtype=torch.float32))
+    # a non-terminal candidate keeps the bootstrap -γ^{k+1} V
+    assert G[0, Action.IDLE].min() < -4.0
+
+
+def test_score_agg_and_imagined_npc_flags():
+    sim = TrueSimulator(ENV)
+    probs = lambda x: torch.full((x.shape[0], 8), 1 / 8)  # noqa: E731 (stochastic NPC)
+    val = lambda x: torch.zeros(x.shape[0])  # noqa: E731
+    raw, win = torch.tensor([DUEL, STUNNED]), torch.zeros(2, 8, FEAT_DIM)
+    run = lambda **kw: imagined_returns(sim, SPEC, probs, val, uniform_iop, raw, win,  # noqa: E731
+                                        torch.Generator().manual_seed(3), k=2, opp_samples=8, gamma=GAMMA, **kw)
+    G = run(npc_samples=4)
+    assert G.shape == (2, 8, 8, 4)
+    assert torch.equal(G, run(npc_samples=4))  # same generator seed -> same returns
+    assert torch.equal(G, run(npc_samples=4, chunk_rows=64))  # independent of chunking
+    q_max, q_mean = aggregate_q(G, "max"), aggregate_q(G, "mean")
+    assert torch.all(q_max >= q_mean - 1e-6)
+    assert torch.allclose(q_max, G.mean(3).max(2).values)
+    assert run(imagined_npc="greedy", npc_samples=4).shape == (2, 8, 8, 1)
+    with pytest.raises(ValueError):
+        aggregate_q(G, "median")
+    with pytest.raises(ValueError):
+        run(imagined_npc="softmax")
+
+
+def test_npc_samples_are_shared_across_candidates():
+    # with an NPC whose action does not depend on the state, every candidate sees the same NPC action at t = 0;
+    # check it through the returns: STUNNED forces the NPC idle, so use DUEL with an NPC that attacks w.p. 1/2
+    sim = TrueSimulator(ENV)
+    probs = lambda x: torch.tensor([[0.5, 0, 0, 0, 0, 0.5, 0, 0]]).expand(x.shape[0], 8)  # noqa: E731
+    val = lambda x: torch.zeros(x.shape[0])  # noqa: E731
+    G = imagined_returns(sim, SPEC, probs, val, uniform_iop, torch.tensor([DUEL]), torch.zeros(1, 8, FEAT_DIM),
+                         torch.Generator().manual_seed(0), k=2, opp_samples=4, npc_samples=8, gamma=GAMMA)
+    # candidate 'attack': NPC attacks -> both die (0); NPC idles -> opponent kills it (+1.1). Same per NPC sample
+    # for every opponent continuation, and the 'idle' candidate loses exactly where the NPC attacked.
+    att, idle = G[0, Action.ATTACK], G[0, Action.IDLE]
+    npc_attacked = att[0] == 0
+    assert torch.all(att == att[0:1])  # identical across continuations (round over at t = 0)
+    assert npc_attacked.any() and (~npc_attacked).any()
+    assert torch.all(idle[:, npc_attacked] < -1.0)  # NPC's hit kills the idle opponent at t = 0
+
+
+def test_iop_finetune_moves_toward_targets():
+    model = PlayerPredictor(hidden=16)
+    iops = IOPSet(model, n_levels=3, lr=1e-2, grad_steps=20, buffer=8)
+    wins = torch.randn(32, 8, FEAT_DIM)
+    for i in range(10):
+        iops.record(wins[i], torch.tensor(STUNNED), i % 8)
+    w, r, a = iops.buffer_tensors()
+    assert w.shape == (8, 8, FEAT_DIM) and r.shape == (8, 15) and a.tolist() == [2, 3, 4, 5, 6, 7, 0, 1]
+    target = torch.zeros(32, 8)
+    target[:, 6] = 1.0
+    before = iops.probs(1, wins)[:, 6].mean()
+    iops.finetune(1, wins, target)
+    assert iops.probs(1, wins)[:, 6].mean() > before + 0.3
+    assert torch.allclose(iops.probs(0, wins), iops.probs(2, wins))  # other levels untouched
+    iops.finetune(0, wins, torch.full((32,), 3))
+    assert iops.probs(0, wins)[:, 3].mean() > 0.5
+    assert iops.predict_all(wins[0]).shape == (3, 8)
+
+
+def test_true_simulator_step_t_matches_step():
+    sim, raw = TrueSimulator(ENV), random_legal_states(200, 5)
+    rng = np.random.default_rng(6)
+    a0, a1 = rng.integers(8, size=200), rng.integers(8, size=200)
+    n, r, d = sim.step(raw, a0, a1)
+    nt, rt, dt = sim.step_t(torch.from_numpy(raw.astype(np.int64)), torch.from_numpy(a0), torch.from_numpy(a1))
+    assert np.array_equal(nt.numpy(), n) and np.array_equal(rt.numpy(), r) and np.array_equal(dt.numpy(), d)

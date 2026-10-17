@@ -138,22 +138,38 @@ class EnvModel(nn.Module):
         raw = np.asarray(raw, dtype=np.int16)
         was_training = self.training
         self.eval()
-        outs = [self(features(self.spec, raw[i:i + chunk], np.asarray(a_npc)[i:i + chunk],
-                              np.asarray(a_opp)[i:i + chunk])).numpy() for i in range(0, len(raw), chunk)]
+        nxt, rew, done = self.step_t(torch.from_numpy(raw.astype(np.int64)), torch.as_tensor(np.asarray(a_npc)),
+                                     torch.as_tensor(np.asarray(a_opp)), chunk)
         self.train(was_training)
-        out = np.concatenate(outs) if outs else np.zeros((0, self.spec.n_out), np.float32)
+        return nxt.numpy().astype(np.int16), rew.numpy(), done.numpy()
+
+    @torch.no_grad()
+    def step_t(self, raw, a_npc, a_opp, chunk=65536):
+        """step() in torch, no numpy round trip (for batched imagination). raw: long tensor (N, 15); actions: (N,).
+        Returns (next_raw long (N, 15), reward float32 (N,), done bool (N,)). The net has no dropout / batch norm,
+        so train / eval mode does not matter here."""
+        raw = raw.long()
         sp, off = self.spec, self.spec.head_offsets
-        cls = np.stack([out[:, off[i]:off[i + 1]].argmax(1) for i in range(len(sp.head_sizes))], 1)
-        nxt = raw.copy()
-        nxt[:, list(REG)] += (cls[:, :N_REG] - sp.delta_m).astype(np.int16)
+        a_npc, a_opp = a_npc.long(), a_opp.long()
+        outs = [self(features(sp, raw[i:i + chunk], a_npc[i:i + chunk], a_opp[i:i + chunk]))
+                for i in range(0, len(raw), chunk)]
+        out = torch.cat(outs) if outs else torch.zeros((0, sp.n_out))
+        cls = torch.stack([out[:, off[i]:off[i + 1]].argmax(1) for i in range(len(sp.head_sizes))], 1)
+        nxt = raw.clone()
+        nxt[:, list(REG)] += cls[:, :N_REG] - torch.as_tensor(sp.delta_m, dtype=torch.long)
         nxt[:, F0], nxt[:, F1] = cls[:, N_REG], cls[:, N_REG + 1]
         nxt[:, T] = raw[:, T] + 1
-        nxt = np.clip(nxt, sp.lo, sp.hi).astype(np.int16)
+        nxt = torch.maximum(torch.minimum(nxt, torch.as_tensor(sp.hi, dtype=torch.long)),
+                            torch.as_tensor(sp.lo, dtype=torch.long))
         shaping = out[:, -1]
         if sp.r_quantum > 0:
-            shaping = np.rint(shaping)
+            shaping = torch.round(shaping)
         shaping = shaping * sp.r_scale
-        return nxt, (shaping + sp.terminal_bonus(nxt)).astype(np.float32), sp.done(nxt)
+        hp0, hp1 = nxt[:, HP0], nxt[:, HP1]
+        done = (hp0 <= 0) | (hp1 <= 0) | (nxt[:, T] >= sp.max_steps)
+        bonus = torch.where(hp0 > hp1, sp.r_win, torch.where(hp1 > hp0, sp.r_loss, sp.r_draw)).double()
+        bonus = torch.where(done, bonus, torch.zeros_like(bonus))
+        return nxt, (shaping.double() + bonus).float(), done
 
 
 class TrueSimulator:
@@ -175,6 +191,11 @@ class TrueSimulator:
             r, d = g.step(int(a_npc[i]), int(a_opp[i]))
             nxt[i], rew[i], done[i] = raw_state(g), r, d
         return nxt, rew, done
+
+    def step_t(self, raw, a_npc, a_opp):
+        """Torch-tensor interface of step() (same as EnvModel.step_t); still a Python loop over rows."""
+        nxt, rew, done = self.step(raw.numpy(), a_npc.numpy(), a_opp.numpy())
+        return torch.from_numpy(nxt.astype(np.int64)), torch.from_numpy(rew), torch.from_numpy(done)
 
 
 def rollout(model, raw, a_npc_seq, a_opp_seq):

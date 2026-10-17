@@ -5,6 +5,19 @@ players_config: configs/players.yaml
 predictor_checkpoint: models/predictor.pt
 model_dir: models/npc
 
+imagination:                      # opponent best responses in Γ (adaptive_npc/npc/mbom/imagination.py, eq. 5)
+  k: 2                            # continuation steps after the candidate action (Γ steps k + 1 times)
+  opp_samples: 16                 # uniformly random opponent continuations per candidate action (shared by candidates)
+  npc_samples: 1                  # NPC sampling-noise draws per state, shared by candidates (cost is linear in this:
+                                  # 1.5 s per level at 1, 5.9 s at 4, 256 states, 10 threads)
+  score_agg: max                  # max: max over opponent continuations of the mean over NPC samples | mean
+  imagined_npc: stochastic        # NPC actions in imagination: stochastic (sampled from π) | greedy
+  tau_br: 0.1                     # soft best-response targets softmax(Q / tau_br)
+  gamma: 0.99                     # = ppo.hparams.gamma of the NPC (Vᵒ = -V bootstrap)
+  chunk_rows: 32768               # rollout rows per batch (memory bound)
+  oracle_model: false             # DEBUG ONLY: true simulator instead of Γ; never used in reported results
+  env_model_checkpoint: models/env_model.pt
+
 mixer:                            # Bayesian mixing of IOP levels (adaptive_npc/npc/mbom/mixer.py, eq. 6-8)
   decay: 0.9                      # Ψ = decayed average of posteriors
   temperature: 0.5                # α = softmax(Ψ / T); caps α_max at e^{1/T}/(e^{1/T}+M-1) ≈ 0.79 for M = 3
