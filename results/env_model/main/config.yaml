@@ -17,6 +17,12 @@ train:
   lr: 0.001
   lr_final: 5.0e-05
   reward_loss_weight: 1.0
+aug:
+  enabled: true
+  random_fraction: 0.4
+  two_step_share: 0.5
+  hard_weight: 2.0
+  seed: 11
 eval:
   random_actions:
     n: 20000
