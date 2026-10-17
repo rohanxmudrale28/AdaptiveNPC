@@ -1,0 +1,62 @@
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+out_dir: results/learners/smoke
+npc:
+  opponents:
+  - scripted
+  - ppo_none
+  - ppo_predicted
+  model_dir: models/npc
+  predictor_checkpoint: models/predictor.pt
+  checkpoint_seed: 0
+  deterministic: true
+learners:
+  naive:
+    policy: models/learners_smoke/none_seed{seed}.pt
+  reasoning:
+    policy: models/learners_smoke/predicted_seed{seed}.pt
+    npc_model: models/learners_smoke/npc_model.pt
+  gru_online:
+    lr: 0.001
+    every: 25
+    grad_steps: 3
+    buffer: 128
+    min_buffer: 32
+ppo_lite:
+  lr: 0.0003
+  epochs: 2
+  minibatch: 32
+  clip: 0.2
+  ent_coef: 0.01
+  vf_coef: 0.5
+  target_kl: 0.03
+  max_grad_norm: 0.5
+  gamma: 0.99
+  gae_lambda: 0.95
+  critic_warmup_updates: 1
+update_every: 32
+kl_min: 0.05
+kl_check_opponent: ppo_predicted
+collapse_check_opponent: ppo_none
+plot_smooth_rounds: 2
+match: 1
+probe:
+  states: 64
+  max_rounds: 20
+  seed_offset: 500
+guards:
+  eval_rounds: 5
+  collapse_tol: 0.05
+  seed_offset: 900
+sweep:
+- name: lr3e-4_u32
+  lr: 0.0003
+  update_every: 32
+- &id001
+  name: lr3e-3_u16
+  lr: 0.003
+  update_every: 16
+opponent: ppo_predicted
+learner: reasoning
+entry: *id001

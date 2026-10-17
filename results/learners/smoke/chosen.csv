@@ -1,3 +1,3 @@
-learner,chosen_entry,kl_check_opponent,passes_all_opponents
-naive,none,ppo_predicted,
-reasoning,none,ppo_predicted,
+learner,chosen_entry,kl_check_opponent,collapse_check_opponent,lr,update_every,kl,end_vs_random,collapse_start,collapse_end,passes_all_opponents
+naive,lr3e-3_u16,ppo_predicted,ppo_none,0.003,16,0.11293029831722379,0.525,0.0,0.0,True
+reasoning,none,ppo_predicted,ppo_none,,,,,,,

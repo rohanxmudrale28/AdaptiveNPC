@@ -38,12 +38,16 @@ ppo_lite:
 update_every: 32
 kl_min: 0.05
 kl_check_opponent: ppo_predicted
+collapse_check_opponent: ppo_none
+plot_smooth_rounds: 2
 match:
   rounds: 4
   first_n: 2
   seeds:
   - 0
   - 1
+  matches_per_seed: 2
+  match_seed_stride: 1000
   env_seed_base: 20000
 probe:
   states: 64

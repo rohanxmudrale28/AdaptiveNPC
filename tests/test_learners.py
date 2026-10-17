@@ -10,7 +10,7 @@ from adaptive_npc.env.match import run_match
 from adaptive_npc.env.observations import OBS_DIM
 from adaptive_npc.models.player_model import build_model, save_predictor
 from adaptive_npc.models.ppo_lite import PPOLite, action_probs
-from adaptive_npc.npc.ppo_npc import load_policy
+from adaptive_npc.npc.ppo_npc import PolicyNPC, PolicyPlayer, load_policy
 from adaptive_npc.players.naive_learner import NaiveLearner
 from adaptive_npc.players.reasoning_learner import ReasoningLearner
 from adaptive_npc.players.scripted import make_player
@@ -130,6 +130,19 @@ def test_learner_match_is_deterministic(tmp_path):
         learner = ReasoningLearner(pol, gru, PPO_CFG, 32, online, seed=7)
         runs.append(run_match(env_cfg, make_player("mixer", players_cfg, env_cfg, 5), learner, n_rounds=4, seed=3))
     assert runs[0] == runs[1]
+
+
+def test_policy_player_matches_policy_npc_and_plays(tmp_path):
+    """PolicyPlayer greedy == PolicyNPC greedy; the predicted-conditioned variant plays a match from slot 1."""
+    env_cfg, players_cfg = load_config("configs/env.yaml"), load_config("configs/players.yaml")
+    plain = save_random_policy(tmp_path / "plain.pt", OBS_DIM, net=(16,))
+    player, npc = PolicyPlayer(plain), PolicyNPC(plain)
+    for x in np.random.default_rng(0).uniform(-1, 1, (20, OBS_DIM)).astype(np.float32):
+        assert player.act(x, []) == npc.act(x, True)
+    cond = save_random_policy(tmp_path / "cond.pt", OBS_DIM + N_ACTIONS, net=(16,))
+    gru = save_random_npc_model(tmp_path / "gru.pt")
+    res = run_match(env_cfg, make_player("rusher", players_cfg, env_cfg, 5), PolicyPlayer(cond, gru), n_rounds=2, seed=3)
+    assert len(res) == 2
 
 
 def test_load_policy_roundtrip(tmp_path):

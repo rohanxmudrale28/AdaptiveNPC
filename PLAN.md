@@ -189,7 +189,7 @@ Conventions:
   - [ ] Test: the mixer converges to the generating level on synthetic data
   - [ ] Test: imagination finds the known best response in a hand-built state
   - [ ] Commit
-- [ ] **M9 Learning opponents** (built before M7/M8)
+- [x] **M9 Learning opponents** (built before M7/M8)
   - [x] `ppo_lite.py`: trains the SB3 `ActorCriticPolicy` loaded from a `.pt` in place (GAE, clip, normalized advantages, `target_kl` early stop, grad clip, `critic_warmup_updates`)
   - [x] Naive learner: pretrained vs the scripted NPC, then updated online every N steps
   - [x] Reasoning learner: its own GRU model of the NPC. Its policy is conditioned on the predicted NPC action, and both parts are finetuned online.
@@ -201,14 +201,20 @@ Conventions:
     - [x] Fix a probe set of 512 states, from a separate warm-up rollout of the frozen start learner
     - [x] Snapshot the policy at match start and match end; KL and policy entropy are also logged after every round
     - [x] Report mean KL(π_start ‖ π_end) over the probe states, saved to `results/learners/drift.csv` (`kl_full`; `kl_policy` and `npc_model_kl` split the reasoning learner's change by part)
-    - [x] Round-by-round outcome per opponent against a frozen-learner control, with a beat/match/lose verdict from the 95% CI over seeds (`outcome.csv`, `plots/<opponent>.png`)
-  - [ ] Check: mean KL ≥ `kl_min` (default 0.05 nats, in `learners.yaml`) for both learners
-  - [ ] If the check fails, tune the online LR (and update frequency) in `learners.yaml` until KL ≥ `kl_min`. The LR must not get so high that the learner collapses: it must still beat random and must not lose more than at match start. The sweep covers lr {3e-4, 1e-3, 3e-3} × update_every {32, 64}; `chosen.csv` picks the smallest passing LR on `ppo_predicted`.
-  - [ ] Log the chosen LR and its KL per seed
+    - [x] Round-by-round outcome per opponent against a frozen-learner control, with a beat/match/lose verdict from the 95% CI over all matches (`outcome.csv`, `plots/<opponent>.png`)
+    - [x] `match.matches_per_seed` (default 1): N independent matches per (learner, setting, opponent, seed), each from the pretrained weights; CIs over all matches. `--reaggregate` rebuilds outcome/chosen/plots from saved CSVs.
+  - [x] Check: mean KL ≥ `kl_min` (default 0.05 nats, in `learners.yaml`) for both learners
+  - [x] Tune the online LR and update frequency in `learners.yaml`. The LR must not get so high that the learner collapses: it must still beat random and must not lose more than at match start. The sweep covers lr {3e-4, 1e-3, 3e-3} × update_every {32, 64}. `chosen.csv` picks the smallest LR whose means over all matches pass KL ≥ `kl_min` and beats-random on `ppo_predicted`, and end ≥ start − 0.05 on `ppo_none` (the collapse check moved to `ppo_none` because the start score vs `ppo_predicted` is ~0, so it can't fail there).
+  - [x] Log the chosen LR and its KL per seed. Full run (3 seeds × 1 match, `results/learners/main`): **lr 3e-4, update_every 64 for both learners** (already the `learners.yaml` defaults); it passes the checks on all three opponents.
+    - KL vs `ppo_predicted` per seed 0/1/2: naive 1.18 / 0.36 / 0.20, reasoning 2.31 / 2.68 / 3.19 nats (vs `kl_min` 0.05)
+    - Collapse check vs `ppo_none` (mean start → end score): naive 0.27 → 0.27, reasoning 0.46 → 0.44. Per seed it is not uniform: naive seed 0 drops 0.49 → 0.32.
+    - End-of-match learner vs random: 0.68 (naive) and 0.66 (reasoning) on the `ppo_predicted` runs
   - [x] Test: the naive learner's win rate rises over a match vs a frozen NPC (frozen rusher, random-init learner, 150 rounds; camper/repeater are draw-heavy and give no signal)
   - [x] Test: the reasoning learner's NPC-prediction accuracy is above chance
+  - [x] `scripts/train_exploiter.py`: starts from the pretrained naive learner, trains SB3 PPO for 1M steps (seeds 0–2) against the frozen `ppo_predicted` seed 0 (embedded as a `PolicyPlayer`), then evaluates it and the start policy over 200 rounds vs `ppo_predicted` and `ppo_none` (win rate, damage; greedy and stochastic). Smoke-tested.
+  - [ ] Full exploiter results (user run, `results/exploiter/main`)
   - [ ] (Optional) Retrain the NPC with learner snapshots in the opponent pool
-  - [ ] Commit
+  - [x] Commit
 
 ### Tier 3 — Experiments
 - [ ] **M10 Experiment grid**
@@ -315,6 +321,8 @@ Conventions:
 - **Passive archetypes mostly draw.** Camper, repeater, mixer and random draw against each other most of the time, so 20 pairs are above 50% draws. The draw-adjusted win rates for those pairs sit close to 0.5.
 - **`counter_puncher` still wins 90%+ against deterministic opponents** (rusher, kiter, repeater, mixer). It is no longer dominant, because it loses to flanker and `scripted_npc`. Softening only the delay and noise cannot fix this. Getting closer to 60–70% would need a change in its logic.
 - **Win rate saturates at about 100% against the fixed archetypes** for all three PPO modes (none, predicted, oracle), so win rate cannot separate them there. The comparison relies on the other metrics (episode length, damage taken, win rate over the first N rounds, prediction accuracy) and on the learning and switching opponents.
+- **Learners can't beat `ppo_predicted`.** Over a 30-round match, `ppo_predicted` wins about 90–100% against every learner and every LR / update-frequency setting (learner scores 0.00–0.10; verdict "lose" for all). Online learning shows up only as small within-match gains (last 10 − first 10 rounds up to about +0.17). Against `ppo_none` the learners are level (verdict "match", scores 0.2–0.6 with wide CIs); against `scripted` they win 0.88–1.00.
+- **KL is uninformative for near-deterministic policies.** The pretrained learners' entropy is only about 0.07–0.3 nats (maximum ln 8 ≈ 2.08). With so little probability mass off the argmax, small logit changes give large KL(π_start ‖ π_end): even the smallest LR gives 0.2–3.2 nats, far above `kl_min` = 0.05, so the threshold passes trivially. KL is reported, but the per-round score, damage and entropy are the meaningful signals. KL above `kl_min` does not mean the learner adapted usefully.
 
 ---
 

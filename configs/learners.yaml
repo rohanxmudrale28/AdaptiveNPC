@@ -41,12 +41,16 @@ ppo_lite:                              # online PPO of both learners
 update_every: 64                       # learner env steps between ppo_lite updates
 
 kl_min: 0.05                           # mean KL(pi_start || pi_end) on the probe set, nats
-kl_check_opponent: ppo_predicted       # the LR is chosen on this opponent (outcomes are reported for all)
+kl_check_opponent: ppo_predicted       # KL + beats-random checks for the LR choice (outcomes are reported for all)
+collapse_check_opponent: ppo_none      # end-vs-start check; vs ppo_predicted the start score is ~0 so it can't fail
+plot_smooth_rounds: 5                  # score curves use a trailing rolling mean (plots only; CSVs are raw)
 
 match:
   rounds: 30
   first_n: 10                          # first / last N rounds for the within-match trend
   seeds: [0, 1, 2]                     # learner checkpoint seed and match seed
+  matches_per_seed: 1                  # independent matches per (learner, setting, opponent, seed), each from pretrained weights
+  match_seed_stride: 1000              # match j uses env seed env_seed_base + seed + j * stride
   env_seed_base: 20000
 
 probe:

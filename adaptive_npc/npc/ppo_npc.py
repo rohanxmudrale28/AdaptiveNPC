@@ -13,6 +13,7 @@ from stable_baselines3.common.policies import ActorCriticPolicy
 
 from adaptive_npc.env.actions import N_ACTIONS
 from adaptive_npc.models.player_model import OnlinePredictor, load_predictor
+from adaptive_npc.players.base import Player
 
 MODES = ("none", "predicted", "oracle")
 
@@ -110,3 +111,46 @@ class PolicyNPC:
 
     def act(self, obs, deterministic=True):
         return int(self.policy.predict(obs, deterministic=deterministic)[0])
+
+
+class PolicyPlayer(Player):
+    """A saved PPO policy as a Player, so it can sit on either side (e.g. the frozen NPC embedded as the opponent
+    of an exploiter in NPCEnv). With `predictor_ckpt` it is 'predicted'-conditioned: its own frozen GRU predicts
+    the other side's next action from its own (mirror-symmetric) view. Stochastic acting uses a seeded rng."""
+
+    def __init__(self, path, predictor_ckpt=None, deterministic=True, seed=0):
+        self.policy = load_policy(path)
+        self.det = bool(deterministic)
+        self.rng = np.random.default_rng(seed)
+        self.predictor = None
+        if predictor_ckpt is not None:
+            model, model_cfg = load_predictor(predictor_ckpt)
+            self.predictor = OnlinePredictor(model, int(model_cfg["window"]))
+        self.learns = self.predictor is not None  # observe() feeds the predictor its action history
+
+    def seed(self, seed):
+        self.rng = np.random.default_rng(seed)
+
+    def reset(self):
+        if self.predictor is not None:
+            self.predictor.reset_round()
+
+    def act(self, obs, hist):
+        x = obs if self.predictor is None else np.concatenate([obs, self.predictor.predict(obs).astype(np.float32)])
+        with torch.no_grad():
+            probs = self.policy.get_distribution(torch.as_tensor(x, dtype=torch.float32)[None]).distribution.probs[0]
+        probs = probs.numpy().astype(np.float64)
+        return int(np.argmax(probs)) if self.det else int(self.rng.choice(N_ACTIONS, p=probs / probs.sum()))
+
+    def observe(self, transition):
+        self.predictor.observe(transition.action, transition.opp_action)
+
+
+class PolicyPlayerFactory:
+    """Picklable zero-arg factory for make_vec_env(opponent_factory=...)."""
+
+    def __init__(self, path, predictor_ckpt=None, deterministic=True):
+        self.args = (path, predictor_ckpt, deterministic)
+
+    def __call__(self):
+        return PolicyPlayer(*self.args)
