@@ -170,9 +170,10 @@ Conventions:
     - [x] `oracle` (debug upper bound)
   - [x] `train_npc.py` vs the train-archetype pool, using `make_vec_env`
   - [x] `eval/metrics.py` and `eval/runner.py` (`scripts/eval_npc.py` is the CLI; PPO checkpoints are plain torch `.pt` because SB3's zip load fails with the installed torch 2.14)
+  - [x] Metrics also report episode length (`mean_steps`), `damage_taken` per round, and `win_rate_first_n` (N = `eval.first_n_rounds`)
   - [x] Smoke run writes `results/.../metrics.csv`
-  - [ ] Full runs (user): both PPO variants beat the scripted NPC vs the train archetypes
-  - [x] Commit (code + smoke); full runs still pending
+  - [x] Full runs (user): both PPO variants beat the scripted NPC vs the train archetypes
+  - [x] Commit
 
 ### Tier 2 — Core contribution
 - [ ] **M7 Env model Γ**
@@ -308,6 +309,7 @@ Conventions:
 - **Flanker is weak overall.** It beats `counter_puncher` (about 64%), repeater and mixer, but loses to nearly everything else (for example about 1% against rusher and 2% against kiter).
 - **Passive archetypes mostly draw.** Camper, repeater, mixer and random draw against each other most of the time, so 20 pairs are above 50% draws. The draw-adjusted win rates for those pairs sit close to 0.5.
 - **`counter_puncher` still wins 90%+ against deterministic opponents** (rusher, kiter, repeater, mixer). It is no longer dominant, because it loses to flanker and `scripted_npc`. Softening only the delay and noise cannot fix this. Getting closer to 60–70% would need a change in its logic.
+- **Win rate saturates at about 100% against the fixed archetypes** for all three PPO modes (none, predicted, oracle), so win rate cannot separate them there. The comparison relies on the other metrics (episode length, damage taken, win rate over the first N rounds, prediction accuracy) and on the learning and switching opponents.
 
 ---
 

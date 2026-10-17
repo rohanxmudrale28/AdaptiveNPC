@@ -1,0 +1,2 @@
+method,opponent,heldout,seed,win_rate,win_rate_first_n,damage_taken,wins,draws,losses,mean_return,mean_steps,rounds
+scripted,repeater,False,1,1.0,1.0,1.5666666666666667,1.0,0.0,0.0,1.343333333333333,32.166666666666664,30

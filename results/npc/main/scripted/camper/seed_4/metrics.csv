@@ -1,0 +1,2 @@
+method,opponent,heldout,seed,win_rate,win_rate_first_n,damage_taken,wins,draws,losses,mean_return,mean_steps,rounds
+scripted,camper,False,4,0.3333333333333333,0.4,4.4,0.3,0.06666666666666667,0.6333333333333333,-0.4366666666666667,34.03333333333333,30

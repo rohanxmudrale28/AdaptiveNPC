@@ -1,0 +1,2 @@
+method,opponent,heldout,seed,win_rate,win_rate_first_n,damage_taken,wins,draws,losses,mean_return,mean_steps,rounds
+scripted,flanker,False,4,1.0,1.0,0.3333333333333333,1.0,0.0,0.0,1.4466666666666665,77.96666666666667,30

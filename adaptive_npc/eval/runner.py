@@ -86,10 +86,10 @@ def run_grid(cfg, env_cfg, players_cfg, out_dir, methods=None, opponents=None, s
                 save_run_metadata(cell, cfg)
                 write_csv(cell / "rounds.csv", rounds)
                 row = {"method": method, "opponent": opp, "heldout": opp in held, "seed": int(seed),
-                       **summarize_rounds(rounds)}
+                       **summarize_rounds(rounds, env_cfg["hp"], int(ev["first_n_rounds"]))}
                 write_csv(cell / "metrics.csv", [row])
                 rows.append(row)
     write_csv(out / "metrics.csv", rows)
-    summary = aggregate(rows, metrics=("win_rate", "mean_return"))
+    summary = aggregate(rows)
     write_csv(out / "summary.csv", summary)
     return rows, summary

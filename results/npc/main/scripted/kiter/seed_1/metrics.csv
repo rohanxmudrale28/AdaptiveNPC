@@ -1,0 +1,2 @@
+method,opponent,heldout,seed,win_rate,win_rate_first_n,damage_taken,wins,draws,losses,mean_return,mean_steps,rounds
+scripted,kiter,True,1,0.48333333333333334,0.5,2.566666666666667,0.2,0.5666666666666667,0.23333333333333334,0.016666666666666653,134.93333333333334,30

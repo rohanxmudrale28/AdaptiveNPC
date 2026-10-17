@@ -1,0 +1,2 @@
+method,opponent,heldout,seed,win_rate,win_rate_first_n,damage_taken,wins,draws,losses,mean_return,mean_steps,rounds
+ppo_oracle,kiter,True,3,1.0,1.0,0.1,1.0,0.0,0.0,1.4899999999999998,25.866666666666667,30

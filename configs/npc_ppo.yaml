@@ -35,6 +35,7 @@ eval:
   opponents: null                             # null -> train + heldout lists from players.yaml
   seeds: [0, 1, 2, 3, 4]                      # also selects which trained PPO seed to load
   rounds: 30                                  # rounds per match (opponent state persists across them)
+  first_n_rounds: 10                         # win_rate_first_n covers the first N rounds of a match
   env_seed_base: 10000
   deterministic: true                         # greedy PPO actions
   predictor_online: false                     # true -> predictor finetunes online during the match

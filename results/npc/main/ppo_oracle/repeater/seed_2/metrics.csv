@@ -1,0 +1,2 @@
+method,opponent,heldout,seed,win_rate,win_rate_first_n,damage_taken,wins,draws,losses,mean_return,mean_steps,rounds
+ppo_oracle,repeater,False,2,1.0,1.0,0.0,1.0,0.0,0.0,1.5,27.6,30

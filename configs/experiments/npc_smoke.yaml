@@ -35,6 +35,7 @@ eval:
   opponents: [rusher, camper, kiter]
   seeds: [0, 1]
   rounds: 4
+  first_n_rounds: 2                         # win_rate_first_n covers the first N rounds of a match
   env_seed_base: 10000
   deterministic: true
   predictor_online: true

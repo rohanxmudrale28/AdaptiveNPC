@@ -84,15 +84,17 @@ def test_pool_player_samples_members_and_is_seeded():
 
 
 def test_metrics():
-    rounds = [{"winner": 0, "steps": 10, "ret_npc": 1.0}, {"winner": -1, "steps": 20, "ret_npc": 0.0},
-              {"winner": 1, "steps": 30, "ret_npc": -1.0}, {"winner": 0, "steps": 40, "ret_npc": 1.0}]
-    s = summarize_rounds(rounds)
+    rounds = [{"winner": 0, "steps": 10, "ret_npc": 1.0, "hp_npc": 5}, {"winner": -1, "steps": 20, "ret_npc": 0.0, "hp_npc": 5},
+              {"winner": 1, "steps": 30, "ret_npc": -1.0, "hp_npc": 0}, {"winner": 0, "steps": 40, "ret_npc": 1.0, "hp_npc": 5}]
+    s = summarize_rounds(rounds, hp_max=5, first_n=2)
+    assert s["win_rate_first_n"] == pytest.approx(0.75) and s["damage_taken"] == 1.25
     assert s["win_rate"] == pytest.approx(0.625) and s["wins"] == 0.5 and s["mean_steps"] == 25
     m, hw = mean_ci([1.0, 2.0, 3.0])
     assert m == 2.0 and hw == pytest.approx(2.4841, abs=1e-3)  # t(0.975, 2) * 1/sqrt(3)
     assert np.isnan(mean_ci([1.0])[1])
     agg = aggregate([{"method": "a", "opponent": "x", "win_rate": 0.5, "mean_return": 0.0},
-                     {"method": "a", "opponent": "x", "win_rate": 0.7, "mean_return": 1.0}])
+                     {"method": "a", "opponent": "x", "win_rate": 0.7, "mean_return": 1.0}],
+                    metrics=("win_rate", "mean_return"))
     assert agg[0]["n_seeds"] == 2 and agg[0]["win_rate_mean"] == pytest.approx(0.6)
 
 

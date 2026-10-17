@@ -1,0 +1,2 @@
+method,opponent,heldout,seed,win_rate,win_rate_first_n,damage_taken,wins,draws,losses,mean_return,mean_steps,rounds
+scripted,counter_puncher,True,3,0.7,0.55,2.566666666666667,0.6666666666666666,0.06666666666666667,0.26666666666666666,0.5566666666666666,22.466666666666665,30

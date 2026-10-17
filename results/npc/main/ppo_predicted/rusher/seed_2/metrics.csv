@@ -1,0 +1,2 @@
+method,opponent,heldout,seed,win_rate,win_rate_first_n,damage_taken,wins,draws,losses,mean_return,mean_steps,rounds
+ppo_predicted,rusher,False,2,1.0,1.0,0.03333333333333333,1.0,0.0,0.0,1.4966666666666666,18.033333333333335,30
