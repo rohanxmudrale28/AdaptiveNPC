@@ -252,6 +252,20 @@ Conventions:
     - Caveats:
       - **Development signal, not a final claim.** `exploiter_seed1` is the development exploiter, so the go/no-go result and any tuning it triggers are excluded from the final claims (which use `exploiter_seed0` / `exploiter_seed2`).
       - The 7 matches in a cell share one NPC checkpoint, so the 35 paired differences aren't independent and the CI understates the uncertainty (as in the cross-eval). Per-cell differences are reported too.
+    - **Result (user run, `results/mbom/gonogo`): NO-GO.** MBOM beats `ppo_predicted` by 0.004 (paired 0.004 ± 0.034, CI low −0.031; needs ≥ 0.05 and CI low > 0). **MBOM trails `no_imagination` by 0.050 ± 0.031** (paired over 35 matches, CI low −0.081). Imagination made things worse here. Win rates are NPC-side, draws = ½.
+
+      | method | win rate | ± 95% CI (over cells) | rounds 1–5 | rounds 26–30 | damage taken |
+      |---|---|---|---|---|---|
+      | `mbom` | 0.454 | 0.303 | 0.286 | 0.554 | 3.22 |
+      | `mbom_no_imagination` | 0.504 | 0.288 | 0.309 | 0.566 | 2.98 |
+      | `ppo_predicted` | 0.450 | 0.299 | 0.337 | 0.526 | 3.24 |
+
+      | comparison | mean gain over cells | paired mean ± 95% CI (35 matches) | seed 0 | seed 1 | seed 2 | seed 3 | seed 4 |
+      |---|---|---|---|---|---|---|---|
+      | mbom − ppo_predicted | +0.004 | +0.004 ± 0.034 | +0.002 | +0.043 | −0.038 | −0.007 | +0.019 |
+      | mbom − mbom_no_imagination | −0.050 | −0.050 ± 0.031 | −0.021 | +0.010 | −0.167 | −0.043 | −0.029 |
+
+      Per cell (win rate mbom / no_imagination / ppo_predicted): seed 0 0.410 / 0.431 / 0.407; seed 1 0.243 / 0.233 / 0.200; seed 2 0.231 / 0.398 / 0.269; seed 3 0.579 / 0.621 / 0.586; seed 4 0.810 / 0.838 / 0.790. Most of the MBOM deficit comes from seed 2 (−0.167 vs `no_imagination`, where rounds are longest, 87 steps). All three methods improve from rounds 1–5 to 26–30, by +0.19 to +0.27.
   - [ ] Commit
 - [x] **M9 Learning opponents** (built before M7/M8)
   - [x] `ppo_lite.py`: trains the SB3 `ActorCriticPolicy` loaded from a `.pt` in place (GAE, clip, normalized advantages, `target_kl` early stop, grad clip, `critic_warmup_updates`)
