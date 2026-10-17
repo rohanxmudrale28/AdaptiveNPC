@@ -204,20 +204,26 @@ Conventions:
 
       † = decision variant.
     - Win rate is saturated here, so damage taken and action change are what carry the information. Confident disagreement between levels (`mix_perm`) changes about 1 in 5 actions and nearly triples damage taken (0.16 → 0.44 HP per round), yet the NPC still wins. A mixture that agrees with φ0 (`mix_sharp`, `mix_alpha_cap`) barely matters. The policy is robust enough for `mix` against these opponents. Against stronger opponents (exploiters, learners) the same shift may cost more, and the per-round drift log tracks this.
-  - [ ] `iops.py`: φ0 is the pretrained predictor, finetuned online (lr 1e-3, 3 steps every 50 real steps on the last 256). φ1 and φ2 start each match as copies of φ0 and are finetuned incrementally on soft best-response targets softmax(Q/τ), τ = 0.1.
-  - [ ] `imagination.py`: eq. (5), batched in torch
-    - `score_agg: max | mean`. With `max` (the default if it is cheap), the NPC's sampled actions are shared across all candidate opponent continuations, so the NPC's sampling noise is averaged out, and the max is taken only over the opponent's continuations.
-    - `imagined_npc: stochastic | greedy` sets the NPC action convention in imagination. Both it and the evaluation convention (`eval.deterministic`) are recorded in the results config.
-  - [ ] `mixer.py`: eq. (6–8)
-  - [ ] `agent.py`: online loop (Alg. 1). The policy is the frozen `predicted` PPO, fed the mixed IOP.
-  - [ ] Ablation flags: `no_imagination`, `random_finetune` (BM), `single_level=m`, `uniform_mix`
-  - [ ] Per-round log:
-    - mixer weights α over the levels (α_max is capped at about 0.79 by T = 0.5; this is noted in the trace)
-    - per-level IOP prediction accuracy
+  - [x] `iops.py`: φ0 is the pretrained predictor, finetuned online (lr 1e-3, 3 steps every 50 real steps on the last 256). φ1 and φ2 start each match as copies of φ0 and are finetuned incrementally on soft best-response targets softmax(Q/τ), τ = 0.1. The first update uses 10 steps (`warmup_grad_steps`).
+  - [x] `imagination.py`: eq. (5), batched in torch (`EnvModel.step_t` keeps Γ in torch; `step` is now a wrapper around it, bit-identical on 200k rows)
+    - `score_agg: max | mean`. The opponent continuations and the NPC's sampling noise are drawn once per state and shared by all 8 candidate actions (common random numbers). `max` (default) takes the mean over NPC samples, then the max over opponent continuations.
+    - The sharing costs nothing, but each extra NPC sample adds a full rollout pass: one level on 256 states takes 1.5 s at `npc_samples: 1` and 5.9 s at 4 (10 threads). So the default is `npc_samples: 1`, where the NPC's noise is shared across candidates but not averaged.
+    - `imagined_npc: stochastic | greedy` sets the NPC action convention in imagination. It is recorded in the results config together with the evaluation convention (`conventions:` block written by `eval_mbom.py`).
+  - [x] `mixer.py`: eq. (6–8), with an ε-floor on p(aᵒ) and a prior floor (0.01) so a level that has lost for a long time can recover.
+    - Measured on synthetic data (20 seeds): the generating level leads for good by step 17.
+    - After a switch the new level leads for good after a median 50 steps (max 98) when levels overlap strongly (peak 0.4), and after 20 (max 26) at peak 0.6. The lag comes from the sticky prior (moving average of posteriors), not from the evidence. `prior_avg` and `prior_floor` are tuning knobs (dev opponents only).
+    - Steady-state α is 0.71–0.77, under the 0.787 cap.
+  - [x] `agent.py`: online loop (Alg. 1). The policy is the frozen `predicted` PPO, fed the mixed IOP. `MBOMEnv` wraps `NPCEnv` like `ConditionedEnv`. The runner methods are `mbom`, `mbom_<ablation>` and `mbom_single_level<m>`, and `scripts/eval_mbom.py` is the CLI.
+  - [x] Ablation flags: `no_imagination`, `random_finetune` (BM), `single_level=m`, `uniform_mix`
+  - [x] Per-round log (`mbom_rounds.csv` per cell; step-weighted match means in `metrics.csv`):
+    - mixer weights α over the levels (mean and end of round), with an `alpha_cap` column (≈ 0.79 for T = 0.5)
+    - per-level and mixed IOP prediction accuracy, and mixed NLL
     - policy input drift: entropy and max-prob of the policy input vs φ0, and the fraction of steps where the policy's argmax differs from π(·|φ0)
-  - [ ] Test: the mixer converges to the generating level on synthetic data
-  - [ ] Test: imagination finds the known best response in a hand-built state
-  - [ ] `scripts/benchmark_mbom.py`: seconds per update and per 30-round match, which sizes M10 (user run)
+    - updates, update seconds, Q spread
+  - [x] Test: the mixer converges to the generating level on synthetic data, follows a switch, respects the α cap, and the mode flags hold α fixed
+  - [x] Test: imagination finds the known best response in two hand-built states. Ground truth is brute force over all continuations with the true rules, and the learned Γ gives the same argmax and Q. Also tested: the done mask, the shared NPC samples, determinism and chunk independence.
+  - [x] Tests: ablation flags, `cond_input` modes, agent determinism, a grid smoke run (deterministic across two runs)
+  - [x] `scripts/benchmark_mbom.py`: seconds per update (Γ / GRU / policy breakdown) and per 30-round match, plus an M10 projection (`results/benchmarks/mbom_speed.csv`, `mbom_m10_projection.csv`). Smoke-tested. Full run: user.
   - [ ] Go/no-go, `scripts/gonogo_mbom.py`: MBOM vs `ppo_predicted` vs `no_imagination` on the development exploiter (`exploiter_seed1`) against NPC seeds 0–4, 200 rounds per cell (user run)
   - [ ] Commit
 - [x] **M9 Learning opponents** (built before M7/M8)

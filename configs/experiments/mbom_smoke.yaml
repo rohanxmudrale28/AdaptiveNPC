@@ -63,3 +63,18 @@ probe:
   control: phi0
   decision_variants: [mix_sharp, mix_perm, mix_alpha_cap]
   max_drop: 0.05
+
+benchmark:
+  out_dir: results/benchmarks/smoke
+  seed: 0
+  rounds: 2
+  opponents: [rusher]
+  methods: [mbom, mbom_no_imagination, ppo_predicted]
+  threads: [0, 1]
+  update_repeats: 1
+  m10:
+    n_opponents: 13
+    n_seeds: 5
+    processes: 6
+    same_cost_as: {mbom_single_level2: mbom, mbom_uniform_mix: mbom}
+    methods: [mbom, mbom_single_level2, mbom_no_imagination, ppo_predicted]

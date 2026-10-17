@@ -71,3 +71,20 @@ eval:                             # scripts/eval_mbom.py (runner grid; methods m
   env_seed_base: 10000
   deterministic: true             # evaluation convention: greedy NPC actions (imagination: imagination.imagined_npc)
   predictor_online: true          # ppo_predicted baseline finetunes its predictor with predictor_config 'online'
+
+benchmark:                        # scripts/benchmark_mbom.py -> <out_dir>/mbom_speed.csv, mbom_m10_projection.csv
+  out_dir: results/benchmarks
+  seed: 0                         # NPC checkpoint seed of the timed matches
+  rounds: 30
+  opponents: [rusher, switcher, kiter, counter_puncher]   # short and long rounds vs ppo_predicted
+  methods: [mbom, mbom_single_level1, mbom_random_finetune, mbom_no_imagination, ppo_predicted]
+  threads: [0, 1]                 # torch threads per process; 0 = torch default (all cores)
+  update_repeats: 3               # timed updates on a full buffer (component breakdown)
+  m10:                            # projection of the M10 grid from the measured mean match time
+    n_opponents: 13
+    n_seeds: 5
+    processes: 6                  # parallel processes at 1 torch thread each
+    # methods not timed directly reuse the time of a method with the same imagination work
+    same_cost_as: {mbom_single_level2: mbom, mbom_uniform_mix: mbom}
+    methods: [mbom, mbom_random_finetune, mbom_single_level1, mbom_single_level2, mbom_uniform_mix,
+              mbom_no_imagination, ppo_predicted]
