@@ -1,0 +1,42 @@
+# M7 env model Γ. Run:
+#   python -m scripts.train_env_model --config configs/env_model.yaml [--recollect]
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+learners_config: configs/learners.yaml   # pretrained learner paths + ppo_lite settings for the learner opponents
+out_dir: results/env_model/main
+model_path: models/env_model.pt
+oracle_model: false                      # DEBUG ONLY: use the true simulator instead of Γ (never for reported results)
+
+data:
+  dir: data/env_model                    # cached .npz per split (gitignored)
+
+model:
+  hidden: [256, 256]
+
+train:
+  epochs: 40
+  batch_size: 512
+  lr: 0.001
+  lr_final: 0.00005                      # cosine decay
+  reward_loss_weight: 1.0
+
+eval:
+  reward_tol: 0.05                       # reward counts as exactly right within this (shaping steps are 0.1)
+
+collect:
+  npc_methods: [scripted, random, ppo_none, ppo_predicted, ppo_oracle]
+  npc_model_dir: models/npc
+  npc_checkpoint_seeds: [0, 1, 2, 3, 4]
+  predictor_checkpoint: models/predictor.pt
+  npc_deterministic: false               # stochastic NPC acting -> wider state-action coverage
+  exploiter_dir: models/exploiter        # exploiter_seed<k>.pt, acting stochastic
+  learner_seeds: [0, 1, 2]               # learner checkpoint per cell (cell index mod 3); learners update online
+  opponents:
+    train: [rusher, camper, repeater, mixer, flanker, switcher, random, naive_learner, reasoning_learner,
+            exploiter_seed0, exploiter_seed1]
+    heldout: [kiter, counter_puncher, exploiter_seed2]   # never seen in train
+  splits:                                # train / val: same NPCs + opponents, different env seeds
+    train: {opponents: train, rounds: 10, env_seed_base: 100000}
+    val: {opponents: train, rounds: 4, env_seed_base: 200000}
+    heldout_opp: {opponents: heldout, rounds: 10, env_seed_base: 300000}

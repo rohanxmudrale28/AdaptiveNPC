@@ -176,10 +176,13 @@ Conventions:
   - [x] Commit
 
 ### Tier 2 — Core contribution
-- [ ] **M7 Env model Γ**
-  - [ ] `env_model.py` and `train_env_model.py`, trained on the buffer from M6 rollouts
-  - [ ] Report one-step and k-step state/reward error
-  - [ ] Commit
+- [x] **M7 Env model Γ**
+  - [x] `models/env_model.py` (Γ, `TrueSimulator`, `rollout`), `eval/env_model_eval.py`, `scripts/collect_env_data.py`, `scripts/train_env_model.py`, `configs/env_model.yaml` (+ smoke config)
+  - [x] State = 15 integers (positions, facing, hp, stamina, cooldown, stun, t). Every discrete channel is a classification head (delta class per channel, 4-way facing, t = t+1), snapped to a legal integer state that feeds back in rollouts. Reward: Γ learns the shaping part; the win/loss/draw bonus is computed from the predicted next state (a rare ±1 spike was unlearnable as MSE: first regression version had 0% terminal-reward accuracy and 75% full-state exactness).
+  - [x] Data: NPCs scripted, random, ppo_none/predicted/oracle (5 checkpoint seeds, stochastic) × opponents (train archetypes, random, online naive/reasoning learners, exploiters 0–1). `train` / `val` use the same opponents with different env seeds; `heldout_opp` = kiter, counter_puncher, exploiter_seed2. 86.7k / 34.3k / 23.2k transitions.
+  - [x] Full run (`results/env_model/main`, 40 epochs): full-state exact 98.7% (1-step) / 97.5% (2-step) on held-out transitions, 97.5% / 95.5% on held-out opponents; reward within 0.05: 98.9% / 98.6%. Per-channel table in `error_table.md`.
+  - [x] Tests (`tests/test_env_model.py`): oracle simulator replays the core exactly; Γ rollouts vs the true simulator; checkpoint round trip. `oracle_model` flag: `--set oracle_model=true` evaluates the true simulator (100% by construction).
+  - [x] Commit
 - [ ] **M8 MBOM**
   - [ ] `iops.py`: φ0 is the pretrained predictor
   - [ ] `imagination.py`: eq. (5), batched in torch
@@ -361,6 +364,8 @@ Conventions:
 - **The exploit exists but is out of reach online.** Offline exploiters, starting from the same pretrained naive policy, beat `ppo_predicted` (win rate 0.70–0.81 mean over 3 seeds), but they needed 1M training steps. A 30-round match gives an online learner only about 600–1,000 steps, roughly 0.1% of that budget, so the learners can't find the exploit within a match. The online learners' "lose" verdict vs `ppo_predicted` reflects the match budget, not an unexploitable NPC.
 - **Cross-eval cells aren't independent samples.** The 15 cells per NPC mode cross 3 exploiters with 5 NPC checkpoints, so every exploiter appears in 5 cells and every NPC seed in 3. The pooled 95% CI treats the 15 cells as independent (t-interval, 14 df), so it understates the uncertainty. The real sample sizes are 3 exploiters and 5 NPC seeds, and the cell-to-cell spread (0.07–0.995 vs `ppo_predicted`) mixes exploiter effects, NPC-seed effects and their interaction, which 15 cells can't separate. Read the pooled numbers as descriptive, and use the per-cell table.
 - **KL is uninformative for near-deterministic policies.** The pretrained learners' entropy is only about 0.07–0.3 nats (maximum ln 8 ≈ 2.08). With so little probability mass off the argmax, small logit changes give large KL(π_start ‖ π_end): even the smallest LR gives 0.2–3.2 nats, far above `kl_min` = 0.05, so the threshold passes trivially. KL is reported, but the per-round score, damage and entropy are the meaningful signals. KL above `kl_min` does not mean the learner adapted usefully.
+
+- **Γ errors compound with k.** Full-state exactness drops from about 98% (1 step) to 95–97% (2 steps), and held-out opponents are about 1 point worse. Rare events (kiter, random NPC) are the weakest cells (`errors_by_group.csv`). Γ is trained on the 8-action game only for the NPC-side distribution above.
 
 ---
 

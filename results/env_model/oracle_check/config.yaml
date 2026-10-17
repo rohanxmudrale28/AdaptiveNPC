@@ -1,0 +1,72 @@
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+learners_config: configs/learners.yaml
+out_dir: results/env_model/main
+model_path: models/env_model.pt
+oracle_model: true
+data:
+  dir: data/env_model
+model:
+  hidden:
+  - 256
+  - 256
+train:
+  epochs: 40
+  batch_size: 512
+  lr: 0.001
+  lr_final: 5.0e-05
+  reward_loss_weight: 1.0
+eval:
+  reward_tol: 0.05
+collect:
+  npc_methods:
+  - scripted
+  - random
+  - ppo_none
+  - ppo_predicted
+  - ppo_oracle
+  npc_model_dir: models/npc
+  npc_checkpoint_seeds:
+  - 0
+  - 1
+  - 2
+  - 3
+  - 4
+  predictor_checkpoint: models/predictor.pt
+  npc_deterministic: false
+  exploiter_dir: models/exploiter
+  learner_seeds:
+  - 0
+  - 1
+  - 2
+  opponents:
+    train:
+    - rusher
+    - camper
+    - repeater
+    - mixer
+    - flanker
+    - switcher
+    - random
+    - naive_learner
+    - reasoning_learner
+    - exploiter_seed0
+    - exploiter_seed1
+    heldout:
+    - kiter
+    - counter_puncher
+    - exploiter_seed2
+  splits:
+    train:
+      opponents: train
+      rounds: 10
+      env_seed_base: 100000
+    val:
+      opponents: train
+      rounds: 4
+      env_seed_base: 200000
+    heldout_opp:
+      opponents: heldout
+      rounds: 10
+      env_seed_base: 300000

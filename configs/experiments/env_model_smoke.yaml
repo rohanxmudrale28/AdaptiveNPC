@@ -1,0 +1,40 @@
+# Smoke config for scripts.train_env_model (~1-2 min). Same keys as configs/env_model.yaml.
+seed: 0
+env_config: configs/env.yaml
+players_config: configs/players.yaml
+learners_config: configs/experiments/learners_smoke.yaml
+out_dir: results/env_model/smoke
+model_path: models/env_model_smoke.pt
+oracle_model: false
+
+data:
+  dir: data/env_model_smoke
+
+model:
+  hidden: [64, 64]
+
+train:
+  epochs: 3
+  batch_size: 256
+  lr: 0.001
+  lr_final: 0.0001
+  reward_loss_weight: 1.0
+
+eval:
+  reward_tol: 0.05
+
+collect:
+  npc_methods: [scripted, random, ppo_none, ppo_predicted, ppo_oracle]
+  npc_model_dir: models/npc
+  npc_checkpoint_seeds: [0]
+  predictor_checkpoint: models/predictor.pt
+  npc_deterministic: false
+  exploiter_dir: models/exploiter_smoke
+  learner_seeds: [0, 1]
+  opponents:
+    train: [rusher, camper, mixer, random, naive_learner, reasoning_learner, exploiter_seed0]
+    heldout: [kiter, counter_puncher, exploiter_seed1]
+  splits:
+    train: {opponents: train, rounds: 2, env_seed_base: 100000}
+    val: {opponents: train, rounds: 1, env_seed_base: 200000}
+    heldout_opp: {opponents: heldout, rounds: 2, env_seed_base: 300000}
