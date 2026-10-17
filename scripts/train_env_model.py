@@ -18,7 +18,10 @@ import numpy as np
 import torch
 
 from adaptive_npc.config import add_config_args, config_from_args, load_config
-from adaptive_npc.eval.env_model_eval import evaluate, evaluate_groups, evaluate_random_actions, format_table
+from adaptive_npc.eval.env_model_eval import (evaluate, evaluate_groups, evaluate_random_actions, format_table,
+                                              format_terminal_table, predictions, random_action_predictions,
+                                              terminal_breakdown)
+from adaptive_npc.models.env_model_data import augment_random_actions, mix
 from adaptive_npc.eval.runner import write_csv
 from adaptive_npc.logging_utils import save_run_metadata
 from adaptive_npc.models.env_model import EnvModel, EnvSpec, features, load_env_model, loss_fn, save_env_model, targets
@@ -46,7 +49,18 @@ def fit(cfg, spec, data, log_path=None):
     t = cfg["train"]
     seed_everything(int(cfg["seed"]))
     model = EnvModel(spec, cfg["model"]["hidden"])
-    x, tg = tensors(spec, data["train"])
+    train = data["train"]
+    aug = cfg.get("aug")
+    if aug and aug["enabled"]:
+        assert int(aug["seed"]) != int(cfg["eval"]["random_actions"]["seed"]), "aug seed must differ from the eval slice seed"
+        extra = augment_random_actions(spec.cfg, train["state"], len(train["state"]), float(aug["random_fraction"]),
+                                       float(aug["two_step_share"]), float(aug["hard_weight"]), int(aug["seed"]))
+        n0, n1 = len(train["state"]), len(extra["state"])
+        print(f"train mix: {n0} on-policy + {n1} random-action ({100 * n1 / (n0 + n1):.1f}%)", flush=True)
+        train = mix(train, extra)
+        write_csv(Path(log_path).with_name("train_mix.csv"),
+                  [{"source": "on_policy", "n": n0}, {"source": "random_action", "n": n1}]) if log_path else None
+    x, tg = tensors(spec, train)
     xv, tgv = tensors(spec, data["val"])
     opt = torch.optim.Adam(model.parameters(), lr=float(t["lr"]))
     epochs, bs = int(t["epochs"]), int(t["batch_size"])
@@ -116,6 +130,13 @@ def main():
     rows += [{"set": "random_actions", **r} for r in res]
     group_rows.append({"set": "random_actions", **grow})
     tables.insert(2, format_table(res, f"random-action slice ({ra['n']} val states, both sides uniformly random)"))
+    term = {"val": terminal_breakdown(predictions(model, data["val"]), env_cfg, tol)}
+    if "heldout_opp" in data:
+        term["heldout_opp"] = terminal_breakdown(predictions(model, data["heldout_opp"]), env_cfg, tol)
+    term["random_actions"] = terminal_breakdown(
+        random_action_predictions(model, data["val"], env_cfg, int(ra["n"]), int(ra["seed"])), env_cfg, tol)
+    write_csv(out / "terminal_reward.csv", [{"set": k, **r} for k, v in term.items() for r in v])
+    tables.append(format_terminal_table(term))
     write_csv(out / "errors.csv", rows)
     write_csv(out / "errors_by_group.csv", group_rows)
     text = "\n\n".join(tables)

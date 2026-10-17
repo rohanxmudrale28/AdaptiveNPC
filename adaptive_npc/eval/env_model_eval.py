@@ -43,9 +43,9 @@ def _channel_rows(pred, true, base, reward_pred, reward_true, tol, done_true):
 def predictions(model, data):
     """One-step and 2-step predictions: dict of aligned arrays per horizon."""
     s, n = data["state"], data["next_state"]
-    s1, r1, _ = model.step(s, data["a_npc"], data["a_opp"])
-    out = {1: {"idx": np.arange(len(s)), "pred": s1, "pred_r": r1, "true": n, "true_r": data["reward"], "base": s,
-               "done": data["done"].astype(bool)}}
+    s1, r1, pd1 = model.step(s, data["a_npc"], data["a_opp"])
+    out = {1: {"idx": np.arange(len(s)), "pred": s1, "pred_r": r1, "pred_done": pd1, "true": n, "true_r": data["reward"],
+               "base": s, "done": data["done"].astype(bool)}}
     i = np.where((data["ep"][:-1] == data["ep"][1:]) & ~data["done"][:-1].astype(bool))[0]
     if len(i):
         s2, r2, _ = model.step(s1[i], data["a_npc"][i + 1], data["a_opp"][i + 1])
@@ -62,11 +62,11 @@ def random_action_predictions(model, data, env_cfg, n, seed):
     a = rng.integers(N_ACTIONS, size=(4, len(s)))
     sim = TrueSimulator(env_cfg)
     t1, tr1, td1 = sim.step(s, a[0], a[1])
-    p1, pr1, _ = model.step(s, a[0], a[1])
+    p1, pr1, pd1 = model.step(s, a[0], a[1])
     k = ~td1
     t2, tr2, td2 = sim.step(t1[k], a[2][k], a[3][k])
     p2, pr2, _ = model.step(p1[k], a[2][k], a[3][k])
-    return {1: {"pred": p1, "pred_r": pr1, "true": t1, "true_r": tr1, "base": s, "done": td1},
+    return {1: {"pred": p1, "pred_r": pr1, "pred_done": pd1, "true": t1, "true_r": tr1, "base": s, "done": td1},
             2: {"pred": p2, "pred_r": pr2, "true": t2, "true_r": tr2, "base": s[k], "done": td2}}
 
 
@@ -132,3 +132,46 @@ def format_table(rows, title):
         cp = f"{100 * a['copy_exact']:.1f}% / " + ("" if b is None else f"{100 * b['copy_exact']:.1f}%")
         lines.append(f"| {f} | {mae(a)} | {ex(a)} | {mae(b)} | {ex(b)} | {cp} |")
     return "\n".join(lines)
+
+
+TERMINAL_CATEGORIES = ("ko_win", "ko_loss", "ko_draw", "timeout_win", "timeout_loss", "timeout_draw",
+                       "win", "loss", "draw", "timeout", "all_round_end")
+
+
+def terminal_breakdown(preds, env_cfg, reward_tol):
+    """One-step reward error on round-end steps, by true outcome (NPC view). ko_* = a player reached 0 hp, timeout_* =
+    the step limit ended it; win / loss / draw / timeout are the totals. Rows: category, n, reward_mae, reward_exact
+    (within tol), done_correct (Γ's predicted round end matches), outcome_correct (the sign of the win / loss / draw
+    bonus implied by the predicted state matches)."""
+    p, max_steps = preds[1], int(env_cfg["max_steps"])
+    t, d = p["true"], p["done"]
+    ko = (t[:, 6] <= 0) | (t[:, 7] <= 0)
+    res = np.where(t[:, 6] > t[:, 7], 1, np.where(t[:, 7] > t[:, 6], -1, 0))
+    pd_ = p["pred"]
+    pres = np.where(pd_[:, 6] > pd_[:, 7], 1, np.where(pd_[:, 7] > pd_[:, 6], -1, 0))
+    dr = np.abs(p["pred_r"] - p["true_r"])
+    masks = {f"{k}_{o}": d & (ko if k == "ko" else ~ko) & (res == v) for k in ("ko", "timeout")
+             for o, v in (("win", 1), ("loss", -1), ("draw", 0))}
+    masks.update({"win": d & (res == 1), "loss": d & (res == -1), "draw": d & (res == 0), "timeout": d & ~ko,
+                  "all_round_end": d})
+    rows = []
+    for c in TERMINAL_CATEGORIES:
+        m = masks[c]
+        rows.append({"category": c, "n": int(m.sum()),
+                     "reward_mae": float(dr[m].mean()) if m.any() else float("nan"),
+                     "reward_exact": float(np.mean(dr[m] <= reward_tol)) if m.any() else float("nan"),
+                     "done_correct": float(np.mean(p["pred_done"][m])) if m.any() else float("nan"),
+                     "outcome_correct": float(np.mean(pres[m] == res[m])) if m.any() else float("nan")})
+    return rows
+
+
+def format_terminal_table(rows_by_set):
+    lines = ["**Round-end reward error by outcome (1-step)**", "",
+             "| set | outcome | n | reward MAE | reward exact | round end predicted | outcome predicted |",
+             "|---|---|---|---|---|---|---|"]
+    for name, rows in rows_by_set.items():
+        for r in rows:
+            f = lambda v, pct=True: "" if np.isnan(v) else (f"{100 * v:.1f}%" if pct else f"{v:.4f}")  # noqa: E731
+            lines.append(f"| {name} | {r['category']} | {r['n']} | {f(r['reward_mae'], False)} | {f(r['reward_exact'])} | "
+                         f"{f(r['done_correct'])} | {f(r['outcome_correct'])} |")
+    return chr(10).join(lines)

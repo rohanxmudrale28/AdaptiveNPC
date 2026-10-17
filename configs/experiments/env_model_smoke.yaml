@@ -20,6 +20,13 @@ train:
   lr_final: 0.0001
   reward_loss_weight: 1.0
 
+aug:                                     # random-action augmentation of the TRAIN set (starts from train rollouts only)
+  enabled: true
+  random_fraction: 0.4                   # share of the final training mix
+  two_step_share: 0.5                    # share of augmentation transitions that come from chained 2-step random rollouts
+  hard_weight: 2.0                       # start states near a wall / within distance 2 are sampled this much more often
+  seed: 11                               # must differ from eval.random_actions.seed
+
 eval:
   random_actions: {n: 500, seed: 7}    # slice: val states + uniformly random actions on both sides
   reward_tol: 0.05

@@ -114,3 +114,16 @@ def test_checkpoint_roundtrip(trained, tmp_path):
     a = model.step(held["state"][:20], held["a_npc"][:20], held["a_opp"][:20])
     b = loaded.step(held["state"][:20], held["a_npc"][:20], held["a_opp"][:20])
     assert (a[0] == b[0]).all() and np.allclose(a[1], b[1])
+
+
+def test_random_action_augmentation_is_exact_pool_limited_and_sized():
+    from adaptive_npc.models.env_model_data import augment_random_actions
+    pool = random_rounds(20, 4)["state"]
+    aug = augment_random_actions(ENV, pool, n_base=3000, fraction=0.4, two_step_share=0.5, hard_weight=2.0, seed=11)
+    n = len(aug["state"])
+    assert abs(n / (n + 3000) - 0.4) < 0.01
+    nxt, rew, _ = TrueSimulator(ENV).step(aug["state"], aug["a_npc"], aug["a_opp"])  # labels are exact
+    assert (nxt == aug["next_state"]).all() and np.allclose(rew, aug["reward"])
+    pool_set = {tuple(r) for r in pool}
+    n_pool_starts = sum(tuple(r) in pool_set for r in aug["state"])
+    assert 0.5 * n <= n_pool_starts < n  # one-step starts + first steps of chains come from the pool; chain tails do not
