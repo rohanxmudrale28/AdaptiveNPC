@@ -91,16 +91,22 @@ def save_policy(model, path, ppo_cfg):
                 "net_arch": [int(x) for x in ppo_cfg["net_arch"]]}, path)
 
 
+def load_policy(path):
+    """Rebuild the ActorCriticPolicy saved by save_policy (eval mode). Also the start point of learning players."""
+    ck = torch.load(path, map_location="cpu", weights_only=False)
+    net = ck["net_arch"]
+    policy = ActorCriticPolicy(ck["obs_space"], spaces.Discrete(N_ACTIONS), lambda _: 0.0,
+                               net_arch={"pi": net, "vf": net})
+    policy.load_state_dict(ck["state_dict"])
+    policy.set_training_mode(False)
+    return policy
+
+
 class PolicyNPC:
     """Frozen PPO policy for inference: act(obs, deterministic) -> action."""
 
     def __init__(self, path):
-        ck = torch.load(path, map_location="cpu", weights_only=False)
-        net = ck["net_arch"]
-        self.policy = ActorCriticPolicy(ck["obs_space"], spaces.Discrete(N_ACTIONS), lambda _: 0.0,
-                                        net_arch={"pi": net, "vf": net})
-        self.policy.load_state_dict(ck["state_dict"])
-        self.policy.set_training_mode(False)
+        self.policy = load_policy(path)
 
     def act(self, obs, deterministic=True):
         return int(self.policy.predict(obs, deterministic=deterministic)[0])

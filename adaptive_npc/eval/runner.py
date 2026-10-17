@@ -40,12 +40,11 @@ def play_match(env, act_fn, n_rounds, seed, on_round_start=None):
     return out
 
 
-def run_cell(cfg, env_cfg, players_cfg, method, opponent, seed):
+def build_npc(cfg, env_cfg, players_cfg, method, seed, base_env, npc_seed):
+    """NPC side of a match on `base_env` (an NPCEnv with the opponent embedded).
+    cfg needs eval.deterministic / eval.predictor_online, online, predictor_checkpoint, train.model_dir.
+    Returns (env, act_fn, on_round_start); PPO methods load <model_dir>/<mode>_seed<seed>.pt."""
     ev = cfg["eval"]
-    env_seed = int(ev["env_seed_base"]) + int(seed)
-    opp = make_player(opponent, players_cfg, env_cfg, env_seed + 1)
-    base_env = NPCEnv(env_cfg, opponent=opp, seed=env_seed)
-    on_round_start = None
     if method.startswith("ppo_"):
         mode = method[len("ppo_"):]
         online = cfg["online"] if ev.get("predictor_online") else None
@@ -55,18 +54,25 @@ def run_cell(cfg, env_cfg, players_cfg, method, opponent, seed):
 
         def act_fn(obs, hist):
             return model.act(obs, det)
+        return env, act_fn, None
+    if method == "scripted":
+        npc = make_player("scripted_npc", players_cfg, env_cfg, npc_seed)
+    elif method == "random":
+        npc = RandomPlayer(npc_seed)
     else:
-        env = base_env
-        if method == "scripted":
-            npc = make_player("scripted_npc", players_cfg, env_cfg, env_seed + 2)
-        elif method == "random":
-            npc = RandomPlayer(env_seed + 2)
-        else:
-            raise ValueError(f"unknown method {method!r}")
-        on_round_start = npc.reset
+        raise ValueError(f"unknown method {method!r}")
 
-        def act_fn(obs, hist):
-            return npc.act(obs, hist)
+    def act_fn(obs, hist):
+        return npc.act(obs, hist)
+    return base_env, act_fn, npc.reset
+
+
+def run_cell(cfg, env_cfg, players_cfg, method, opponent, seed):
+    ev = cfg["eval"]
+    env_seed = int(ev["env_seed_base"]) + int(seed)
+    opp = make_player(opponent, players_cfg, env_cfg, env_seed + 1)
+    base_env = NPCEnv(env_cfg, opponent=opp, seed=env_seed)
+    env, act_fn, on_round_start = build_npc(cfg, env_cfg, players_cfg, method, seed, base_env, env_seed + 2)
     return play_match(env, act_fn, int(ev["rounds"]), env_seed, on_round_start)
 
 
