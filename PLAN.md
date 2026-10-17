@@ -190,6 +190,20 @@ Conventions:
   - [ ] Distribution-shift probe, `scripts/probe_cond_shift.py` (config `probe:` in `configs/mbom.yaml`). The frozen `ppo_predicted` gets a transformed conditioning vector instead of raw φ0, vs the train archetypes, 5 NPC seeds × 30 rounds, same env seeds per variant (paired). Variants: φ0 (control), smoothed toward uniform (λ 0.25 / 0.5), `mix_sharp` (½ φ0 + ½ sharpened φ0), `mix_perm` (½ φ0 + ½ φ0 with permuted actions), `mix_alpha_cap` (0.79 φ0 + 0.21 permuted), oracle one-hot.
     - **Pass criterion (fixed before the run):** switch `mbom.cond_input` from `mix` to `top_level` or `sample_level` if the pooled win rate (draws = ½) vs the train archetypes of any mixed-input variant (`mix_sharp`, `mix_perm`, `mix_alpha_cap`) drops more than 5 points below raw φ0 (paired mean drop > 0.05). Otherwise keep `mix`.
     - Caveat: `ppo_predicted` wins about 100% vs the train archetypes, so win rate can only fall. Damage taken and the action-change rate are reported as well, but they don't enter the decision.
+    - **Result (user run, `results/mbom/probe_cond_shift`; 30 paired cells per variant = 6 train archetypes × 5 NPC seeds, 30 rounds each): KEEP `cond_input: mix`.** The worst variant, `mix_perm`, drops 1.4 points (< 5). A secondary check, set by the user, did not trigger either: action change above 25%, or damage taken up more than 0.5 HP over φ0. So the M10 grid gets no extra `top_level` variant.
+
+      | variant | win rate | drop vs φ0 ± 95% CI | damage taken / round | action change |
+      |---|---|---|---|---|
+      | φ0 (control) | 1.000 | – | 0.16 | 0.000 |
+      | smooth25 | 1.000 | 0.000 ± 0.000 | 0.15 | 0.049 |
+      | smooth50 | 0.999 | 0.001 ± 0.002 | 0.18 | 0.105 |
+      | mix_sharp † | 0.999 | 0.001 ± 0.002 | 0.17 | 0.034 |
+      | mix_perm † | 0.986 | 0.014 ± 0.015 | 0.44 | 0.191 |
+      | mix_alpha_cap † | 0.999 | 0.001 ± 0.002 | 0.16 | 0.068 |
+      | oracle | 1.000 | 0.000 ± 0.000 | 0.12 | 0.114 |
+
+      † = decision variant.
+    - Win rate is saturated here, so damage taken and action change are what carry the information. Confident disagreement between levels (`mix_perm`) changes about 1 in 5 actions and nearly triples damage taken (0.16 → 0.44 HP per round), yet the NPC still wins. A mixture that agrees with φ0 (`mix_sharp`, `mix_alpha_cap`) barely matters. The policy is robust enough for `mix` against these opponents. Against stronger opponents (exploiters, learners) the same shift may cost more, and the per-round drift log tracks this.
   - [ ] `iops.py`: φ0 is the pretrained predictor, finetuned online (lr 1e-3, 3 steps every 50 real steps on the last 256). φ1 and φ2 start each match as copies of φ0 and are finetuned incrementally on soft best-response targets softmax(Q/τ), τ = 0.1.
   - [ ] `imagination.py`: eq. (5), batched in torch
     - `score_agg: max | mean`. With `max` (the default if it is cheap), the NPC's sampled actions are shared across all candidate opponent continuations, so the NPC's sampling noise is averaged out, and the max is taken only over the opponent's continuations.
