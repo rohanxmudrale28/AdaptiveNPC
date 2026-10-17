@@ -5,6 +5,13 @@ players_config: configs/players.yaml
 predictor_checkpoint: models/predictor.pt
 model_dir: models/npc
 
+mixer:                            # Bayesian mixing of IOP levels (adaptive_npc/npc/mbom/mixer.py, eq. 6-8)
+  decay: 0.9                      # Ψ = decayed average of posteriors
+  temperature: 0.5                # α = softmax(Ψ / T); caps α_max at e^{1/T}/(e^{1/T}+M-1) ≈ 0.79 for M = 3
+  prior_avg: 0.9                  # prior = moving average of past posteriors
+  eps: 0.001                      # floor added to each level's p(aᵒ) (near-deterministic IOPs)
+  prior_floor: 0.01               # keeps a long-losing level recoverable; sets most of the switch lag
+
 # Distribution-shift probe (scripts/probe_cond_shift.py): the frozen ppo_predicted gets a transformed
 # conditioning vector instead of raw φ0 (frozen), vs the train archetypes. Same env seeds per variant (paired).
 probe:
