@@ -6,7 +6,7 @@ python -m scripts.play --opponent mbom --blind --label B --participant P01    # 
 Opponents: a named enemy from configs/ui.yaml (dummy, rusty, reflex, seer, echo), an NPC version (scripted, ppo_none,
 ppo_predicted, mbom), or any players.yaml archetype / random / switcher. Tick rate: --tick-rate or the select screen.
 Controls are in configs/render.yaml (WASD/arrows move, J attack, K block, L dodge, Enter confirm, Esc pause,
-H legend, F scanlines). `--set ui.<key>=value` overrides configs/ui.yaml, other --set keys override render.yaml.
+H legend, F scanlines, Tab demo panel, P screenshot). `--set ui.<key>=value` overrides configs/ui.yaml, other --set keys override render.yaml.
 """
 import argparse
 import re
@@ -48,6 +48,8 @@ def build_parser():
     p.add_argument("--seed", type=int, default=None)
     p.add_argument("--menu", action=argparse.BooleanOptionalAction, default=None,
                    help="show the title / opponent select screens (default on, unless --opponent or --blind is given)")
+    p.add_argument("--panel", choices=("on", "off"), default="off",
+                   help="start with the demo panel on (Tab toggles; never shown with --blind; P = screenshot)")
     p.add_argument("--blind", action="store_true",
                    help="human test: hide enemy names, NPC header and panel; log the real NPC version to results/human/")
     p.add_argument("--participant", default="P00", help="participant ID for --blind logs (no personal data)")
@@ -118,7 +120,8 @@ def main(argv=None):
     keys = KeyboardInput(cfg["keys"])
     shell = S.Shell(ui, enemies, tick_rate, make_session, has_menu=menu, select_enabled=menu and not args.blind,
                     enemy_index=enemy_idx, blind=args.blind, label=label, on_match_end=on_match_end,
-                    input_clear=keys.clear, max_catchup=cfg["max_catchup_steps"])
+                    input_clear=keys.clear, max_catchup=cfg["max_catchup_steps"],
+                    panel=args.panel == "on")
     if not menu:
         shell.begin()
         if shell.state == S.QUIT:  # checkpoint missing: say so clearly, no window
@@ -131,7 +134,9 @@ def main(argv=None):
     while shell.state != S.QUIT:
         for ev in pygame.event.get():
             cmd = ui_keys.command(ev)
-            if cmd:
+            if cmd == "screenshot":
+                print(f"screenshot: {view.save_screenshot(ui['results_dir'])}")
+            elif cmd:
                 shell.handle(cmd)
             if shell.state == S.PLAY:
                 keys.handle_event(ev)

@@ -25,12 +25,14 @@ class MatchSession:
         self.dmg_taken = 0          # by the human
         self.pred_hits = self.pred_steps = 0
         self._r = None
+        self.last_pred = self.last_actual = None  # the NPC's guess for the last step and what the human did
         self.start_round()
 
     # ------------------------------------------------------------------ rounds
     def start_round(self):
         self.game.reset()
         self.npc.reset_round()
+        self.last_pred = self.last_actual = None
         self._r = {"steps": 0, "dealt": 0, "taken": 0, "hits": 0, "pred_steps": 0}
 
     @property
@@ -51,6 +53,8 @@ class MatchSession:
         """One game step. Returns True when the round ended (and was recorded)."""
         g = self.game
         a_npc = int(self.npc.act(g))
+        self.last_pred = None if self.npc.pred is None else np.array(self.npc.pred)
+        self.last_actual = int(a_human)
         if self.npc.pred is not None:
             self._r["pred_steps"] += 1
             self._r["hits"] += int(np.argmax(self.npc.pred) == int(a_human))
@@ -71,6 +75,7 @@ class MatchSession:
         self.dmg_taken += r["taken"]
         self.pred_hits += r["hits"]
         self.pred_steps += r["pred_steps"]
+        self._r = None  # folded into the match totals
         self.rounds.append({"round": self.round, "winner": WINNER_NAME[g.winner], "hp_npc": g.hp[0],
                             "hp_human": g.hp[1], "steps": r["steps"], "damage_dealt": r["dealt"],
                             "damage_taken": r["taken"],
@@ -80,6 +85,12 @@ class MatchSession:
     @property
     def pred_accuracy(self):
         return self.pred_hits / self.pred_steps if self.pred_steps else None
+
+    @property
+    def running_accuracy(self):
+        """Prediction accuracy over the match so far, including the round in progress."""
+        n = self.pred_steps + (self._r["pred_steps"] if self._r else 0)
+        return (self.pred_hits + (self._r["hits"] if self._r else 0)) / n if n else None
 
     def verdict(self):
         """'human' / 'npc' / 'draw' by rounds won so far."""

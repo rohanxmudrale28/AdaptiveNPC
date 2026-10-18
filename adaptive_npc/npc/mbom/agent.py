@@ -151,24 +151,35 @@ class MBOMAgent:
     def update(self):
         t0 = time.perf_counter()
         wins, raws, acts = self.iops.buffer_tensors()
-        self.iops.finetune(0, wins, acts)
-        steps = self.warmup_grad_steps if self.n_updates == 0 else None
+        q_spread = self.compute_update(self.iops, wins, raws, acts, self.n_updates == 0)
+        self.finish_update(q_spread, time.perf_counter() - t0)
+
+    def compute_update(self, iops, wins, raws, acts, first):
+        """The update proper, on `iops` (the live IOPSet, or a private copy when run off-thread). Touches no
+        per-round bookkeeping; returns the Q spreads for finish_update."""
+        iops.finetune(0, wins, acts)
+        steps = self.warmup_grad_steps if first else None
+        q_spread = []
         for m in range(1, self.top + 1):
             if self.ablation == "random_finetune":
                 targets = torch.randint(N_ACTIONS, (len(acts),), generator=self.gen)
             else:
                 G = imagined_returns(self.env_model, self.spec, self.npc_probs, self.npc_value,
-                                     lambda w, m=m: self.iops.probs(m - 1, w), raws, wins, self.gen,
+                                     lambda w, m=m: iops.probs(m - 1, w), raws, wins, self.gen,
                                      k=int(self.im["k"]), opp_samples=int(self.im["opp_samples"]),
                                      npc_samples=int(self.im["npc_samples"]), gamma=float(self.im["gamma"]),
                                      imagined_npc=self.im["imagined_npc"], chunk_rows=int(self.im["chunk_rows"]))
                 Q = aggregate_q(G, self.im["score_agg"])
-                self._acc["q_spread"].append(float((Q.max(1).values - Q.min(1).values).mean()))
+                q_spread.append(float((Q.max(1).values - Q.min(1).values).mean()))
                 targets = br_targets(Q, self.im["tau_br"])
-            self.iops.finetune(m, wins, targets, steps)
+            iops.finetune(m, wins, targets, steps)
+        return q_spread
+
+    def finish_update(self, q_spread, seconds):
+        self._acc["q_spread"].extend(q_spread)
         self.n_updates += 1
         self._acc["updates"] += 1
-        self._acc["update_s"] += time.perf_counter() - t0
+        self._acc["update_s"] += seconds
 
 
 class MBOMEnv(gym.Wrapper):

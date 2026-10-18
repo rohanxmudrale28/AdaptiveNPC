@@ -17,7 +17,7 @@ PAUSE_ITEMS = ("RESUME", "RESTART MATCH", "QUIT TO MENU")
 
 class Shell:
     def __init__(self, ui_cfg, enemies, tick_rate, session_factory, has_menu=True, select_enabled=True,
-                 enemy_index=0, blind=False, label="A", on_match_end=None, input_clear=None, max_catchup=4):
+                 enemy_index=0, blind=False, label="A", on_match_end=None, input_clear=None, max_catchup=4, panel=False):
         self.cfg, self.enemies = ui_cfg, list(enemies)
         self.blind, self.label = bool(blind), label
         self.has_menu, self.select_enabled = bool(has_menu), bool(select_enabled)
@@ -30,6 +30,7 @@ class Shell:
         self.step_s = float(ui_cfg["countdown_step_seconds"])
         self.legend_seconds = float(ui_cfg["legend_seconds"])
         self.scanlines = bool(ui_cfg["scanlines"])
+        self.panel = bool(panel) and not self.blind   # demo panel; never in --blind
 
         self.t = 0.0                  # wall seconds since start (blink animations only)
         self.state = TITLE if has_menu else QUIT
@@ -142,6 +143,8 @@ class Shell:
             self.state = QUIT
         elif cmd == "scanlines":
             self.scanlines = not self.scanlines
+        elif cmd == "panel":
+            self.panel = not self.panel and not self.blind
         elif cmd == "help":
             self.legend_visible, self.legend_timer = not self.legend_visible, None
         else:

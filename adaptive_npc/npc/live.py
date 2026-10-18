@@ -10,6 +10,9 @@ A LiveNPC mirrors what the evaluation does through NPCEnv (eval/runner.build_npc
 Methods: a players.yaml archetype / 'random' / 'switcher', 'scripted', 'ppo_none', 'ppo_predicted', 'mbom'.
 No pygame here.
 """
+import copy
+import threading
+import time
 from pathlib import Path
 
 import numpy as np
@@ -71,7 +74,8 @@ class LiveNPC:
 
     def __init__(self):
         self.pred = None
-        self.alpha = None
+        self.alpha = None       # MBOM: posterior over IOP levels
+        self.alpha_cap = None   # MBOM: largest alpha the mixer can reach
 
     def reset_round(self):
         pass
@@ -140,6 +144,54 @@ class PPOPredicted(LiveNPC):
         self.predictor.observe(a_npc, a_player)
 
 
+class ThreadedMBOMAgent:
+    """Mixin turning an MBOMAgent's imagination update (about 3 s) into an off-thread job so the game loop never
+    stalls. At the trigger step the IOPs are copied and the copy is finetuned in a worker; `poll()` (called once per
+    tick on the main thread) swaps the finished levels in. Until then the previous levels keep predicting, so an
+    update takes effect a few steps later than in the synchronous evaluation loop. A trigger that finds the worker
+    still busy is skipped (counted in `skipped`). `adopt` turns an existing agent into one."""
+
+    @classmethod
+    def adopt(cls, agent):
+        agent.__class__ = type("ThreadedMBOMAgent", (cls, type(agent)), {})
+        agent._worker = agent._job = None
+        agent.skipped = 0
+        return agent
+
+    @property
+    def busy(self):
+        return self._worker is not None
+
+    def update(self):
+        if self._worker is not None:
+            self.skipped += 1
+            return
+        work = copy.deepcopy(self.iops)
+        data, first = work.buffer_tensors(), self.n_updates == 0
+        job = {"work": work}
+
+        def run():
+            t0 = time.perf_counter()
+            try:
+                job["q"] = self.compute_update(work, *data, first)
+            except BaseException as e:  # re-raised on the main thread by poll()
+                job["error"] = e
+            job["seconds"] = time.perf_counter() - t0
+
+        self._job, self._worker = job, threading.Thread(target=run, daemon=True)
+        self._worker.start()
+
+    def poll(self):
+        """Main thread, once per tick: apply a finished update."""
+        if self._worker is None or self._worker.is_alive():
+            return
+        job, self._job, self._worker = self._job, None, None
+        if "error" in job:
+            raise job["error"]
+        self.iops.levels, self.iops.opts = job["work"].levels, job["work"].opts
+        self.finish_update(job["q"], job["seconds"])
+
+
 class MBOMLive(LiveNPC):
     """MBOMAgent driven directly (what MBOMEnv does per step): cond -> act -> observe, end_round on the last step."""
     method = "mbom"
@@ -148,18 +200,22 @@ class MBOMLive(LiveNPC):
     def __init__(self, agent, policy, deterministic):
         super().__init__()
         self.agent, self.policy, self.det = agent, policy, bool(deterministic)
+        self.alpha_cap = agent.mixer.alpha_cap if agent.mixer.mode == "bayes" else 1.0
+        self.alpha = np.array(agent.mixer.alpha)
 
     def reset_round(self):
         self.agent.reset_round()
 
     def act(self, game):
+        if hasattr(self.agent, "poll"):
+            self.agent.poll()
         obs = encode(game, 0)
-        c = self.agent.cond(obs, raw_state(game))
-        self.pred, self.alpha = c, np.array(self.agent.mixer.alpha)
-        return int(self.policy.predict(np.concatenate([obs, c]), deterministic=self.det)[0])
+        self.pred = self.agent.cond(obs, raw_state(game))
+        return int(self.policy.predict(np.concatenate([obs, self.pred]), deterministic=self.det)[0])
 
     def observe(self, a_npc, a_player, game, reward, done):
         self.agent.observe(a_npc, a_player)
+        self.alpha = np.array(self.agent.mixer.alpha)
         if done:
             self.agent.end_round()
 
@@ -192,4 +248,5 @@ def build_live_npc(method, ui_cfg, env_cfg, players_cfg, seed):
     from adaptive_npc.npc.mbom.agent import build_mbom
     npc_cfg["train"] = {"model_dir": npc_cfg["model_dir"]}
     env, policy = build_mbom(npc_cfg, env_cfg, "mbom", ck_seed, NPCEnv(env_cfg, opponent=RandomPlayer(seed), seed=seed))
-    return MBOMLive(env.agent, policy, det)
+    agent = ThreadedMBOMAgent.adopt(env.agent) if ui_cfg.get("mbom_async", True) else env.agent
+    return MBOMLive(agent, policy, det)

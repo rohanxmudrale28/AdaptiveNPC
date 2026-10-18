@@ -15,6 +15,8 @@ KEY_LABELS = {"left shift": "LSHIFT", "right shift": "RSHIFT", "left ctrl": "LCT
               "right": "RIGHT"}
 HUD_H = 46
 BAR_W = 96
+ACTION_LABELS = (("IDL", "UP", "DWN", "LFT", "RGT", "ATK", "BLK", "DGE"))
+PANEL_X, PANEL_W, PANEL_H = 237, 79, 152  # fits the free margin right of the arena; the arena does not move
 STAR = ((1, 0), (0, 1), (1, 1), (2, 1), (1, 2))
 
 
@@ -164,6 +166,8 @@ class RetroView:
         self.draw_fighters(shell, g)
         self.draw_hud(shell, g)
         self.draw_strip(shell)
+        if shell.panel:
+            self.draw_panel(shell)
         if shell.state == S.COUNTDOWN:
             self.text(shell.countdown_text, self.W // 2, self.ay + self.n * SIZE // 2 - 17, self.c["title"], 5,
                       center=True, shadow=self.c["title_shadow"])
@@ -321,6 +325,56 @@ class RetroView:
                 self.text(line, self.W // 2, y0 + k * 12, self.c["text"] if k == 0 else self.c["dim"], center=True)
         else:
             self.text("H FOR CONTROLS", self.W // 2, y0 + 12, self.c["dim"], center=True)
+
+    # ------------------------------------------------------------------ demo panel
+    def draw_panel(self, shell):
+        """Predictor bars for the last step (the action actually taken is boxed), running accuracy and, for the
+        mbom enemy, alpha over the IOP levels with the alpha cap marked. Read-only."""
+        s = shell.session
+        y0, x0 = self.ay - 2, PANEL_X + 4
+        self.box(PANEL_X, y0, PANEL_W, PANEL_H, self.c["floor_a"], self.c["wall"])
+        self.text("NPC GUESSES", PANEL_X + PANEL_W // 2, y0 + 4, self.c["title"], center=True)
+        bar_x, bar_w = x0 + 21, 36
+        pred, actual = s.last_pred, s.last_actual
+        for k, label in enumerate(ACTION_LABELS):
+            y = y0 + 15 + k * 9
+            if actual == k:
+                self.box(PANEL_X + 2, y - 2, PANEL_W - 4, 10, None, self.c["text"])
+            self.text(label, x0, y, self.c["text"] if actual == k else self.c["dim"])
+            self.box(bar_x, y + 1, bar_w, 5, self.c["bar_back"])
+            if pred is not None:
+                p = float(pred[k])
+                hit = actual == k and int(pred.argmax()) == k
+                col = self.c["hp"] if hit else (self.c["stamina"] if k == int(pred.argmax()) else self.c["dim"])
+                self.box(bar_x, y + 1, max(1 if p > 0.005 else 0, int(round(bar_w * p))), 5, col)
+                self.text(f"{min(99, int(round(p * 100))):2d}", PANEL_X + PANEL_W - 4, y, self.c["dim"], right=True)
+        if not s.npc.predicts:
+            self.box(PANEL_X + 4, y0 + 44, PANEL_W - 8, 13, self.c["floor_a"], self.c["wall"])
+            self.text("NO PREDICTOR", PANEL_X + PANEL_W // 2, y0 + 47, self.c["dim"], center=True)
+        acc = s.running_accuracy
+        self.text("ACCURACY", PANEL_X + PANEL_W // 2, y0 + 90, self.c["dim"], center=True)
+        self.text("N/A" if acc is None else f"{acc * 100:.0f}%", PANEL_X + PANEL_W // 2, y0 + 99,
+                  self.c["text"] if acc is not None else self.c["dim"], 2, center=True)
+        npc = s.npc
+        if npc.alpha is not None:
+            self.text("ALPHA", x0, y0 + 118, self.c["dim"])
+            self.text(f"{npc.alpha_cap:.2f}".replace("0.", "."), bar_x + int(round(bar_w * npc.alpha_cap)) + 3,
+                      y0 + 118, self.c["title"], right=True)
+            for m, a in enumerate(npc.alpha):
+                y = y0 + 128 + m * 8
+                self.text(f"L{m}", x0, y - 1, self.c["text"])
+                self.box(bar_x, y, bar_w, 5, self.c["bar_back"])
+                self.box(bar_x, y, int(round(bar_w * float(a))), 5, self.c["stun"])
+                cx = bar_x + int(round(bar_w * npc.alpha_cap))
+                self.box(cx, y - 1, 1, 7, self.c["title"])
+
+    def save_screenshot(self, directory):
+        import time
+        from pathlib import Path
+        path = Path(directory) / f"screenshot_{time.strftime('%Y%m%dT%H%M%S')}.png"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        pygame.image.save(self.window, str(path))
+        return path
 
     # ------------------------------------------------------------------ pause
     def draw_pause(self, shell):

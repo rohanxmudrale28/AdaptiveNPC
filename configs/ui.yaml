@@ -18,6 +18,8 @@ keys:                      # shell keys (pygame key names); gameplay keys are in
   back: [escape]
   help: [h]
   scanlines: [f]
+  panel: [tab]            # demo panel (predictor bars, accuracy, MBOM alpha); hidden in --blind
+  screenshot: [p]         # saves the window to results/demo/
 
 speed:                     # steps per second shown on the opponent select screen. Default = render.yaml tick_rate
   options: [2, 3, 4, 6, 8]
@@ -26,6 +28,7 @@ speed:                     # steps per second shown on the opponent select scree
 npc_config: configs/mbom.yaml
 npc_seed: 0                # which checkpoint seed of models/npc/<mode>_seed<k>.pt to load
 npc_deterministic: true    # greedy PPO actions, as in the evaluation convention
+mbom_async: true           # MBOM's ~3 s imagination update runs in a worker thread (false: synchronous, as in eval)
 
 # 16-colour palette. Everything on screen uses only these.
 palette:
@@ -69,14 +72,14 @@ enemies:
   - {key: seer,   name: "SEER",           method: ppo_predicted, look: seer,   accessory: antennae,
      tag: HARD,     desc: "GUESSES YOUR NEXT MOVE AND COUNTERS."}
   - {key: echo,   name: "ECHO",           method: mbom,          look: echo,   accessory: crest,
-     tag: EXPERT,   desc: "ADAPTS WHEN YOU CHANGE YOUR STYLE."}
+     tag: HARD,     desc: "ADAPTS WHEN YOU CHANGE YOUR STYLE."}
 
 tags:                      # difficulty tag -> palette colour
   TUTORIAL: silver
   EASY: green
   MEDIUM: amber
   HARD: orange
-  EXPERT: red
+  EXPERT: red             # unused: ECHO is tagged HARD, same tier as SEER (MBOM is not stronger than ppo_predicted)
 
 colors:                    # UI roles -> palette names
   floor_a: night
