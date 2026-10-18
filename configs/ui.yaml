@@ -1,0 +1,93 @@
+# Game shell (title / opponent select / HUD / results) for scripts/play.py. Presentation only: nothing here
+# touches game rules, the NPCs' training or any experiment config. Tick rate, fps, keys and rounds stay in render.yaml.
+title: "ADAPTIVE NPC"
+subtitle: "A RIVAL THAT LEARNS HOW YOU PLAY"
+
+internal: [320, 240]       # internal render surface (px); the whole game is drawn here, then scaled up
+window_scale: 3            # nearest-neighbour scale to the window (3 -> 960x720)
+scanlines: false           # initial state of the scanline overlay (toggle key below)
+shake: {seconds: 0.22, hit: 3, parry: 2}   # screen shake: duration and pixel amplitude
+
+legend_seconds: 5          # controls legend is shown for this long at match start (H toggles it)
+countdown_step_seconds: 0.8
+results_dir: results/demo  # last_match.json
+human_dir: results/human   # --blind logs (one JSON per match)
+
+keys:                      # shell keys (pygame key names); gameplay keys are in render.yaml
+  confirm: [return, enter]   # not space / j: those are attack keys
+  back: [escape]
+  help: [h]
+  scanlines: [f]
+
+speed:                     # steps per second shown on the opponent select screen. Default = render.yaml tick_rate
+  options: [2, 3, 4, 6, 8]
+
+# NPC checkpoints come from this config (model_dir, predictor_checkpoint, mbom / imagination / mixer blocks).
+npc_config: configs/mbom.yaml
+npc_seed: 0                # which checkpoint seed of models/npc/<mode>_seed<k>.pt to load
+npc_deterministic: true    # greedy PPO actions, as in the evaluation convention
+
+# 16-colour palette. Everything on screen uses only these.
+palette:
+  ink:    [15, 15, 27]
+  night:  [30, 30, 54]
+  slate:  [58, 58, 92]
+  steel:  [110, 115, 140]
+  silver: [190, 195, 210]
+  white:  [245, 245, 250]
+  navy:   [28, 52, 120]
+  blue:   [48, 112, 224]
+  sky:    [120, 190, 255]
+  rust:   [130, 48, 28]
+  orange: [240, 128, 40]
+  amber:  [255, 200, 80]
+  red:    [220, 48, 56]
+  green:  [72, 200, 100]
+  forest: [30, 100, 60]
+  violet: [170, 90, 220]
+
+# Sprite roles -> palette names. a = main colour, b = shade, c = highlight, e = eyes / lights.
+looks:
+  player:    {a: blue,   b: navy,   c: sky,    e: white}
+  npc:       {a: orange, b: rust,   c: amber,  e: white}   # default NPC look (also used for every enemy in --blind)
+  dummy:     {a: steel,  b: slate,  c: silver, e: amber}
+  rusty:     {a: orange, b: rust,   c: amber,  e: white}
+  reflex:    {a: green,  b: forest, c: silver, e: white}
+  seer:      {a: violet, b: navy,   c: sky,    e: amber}
+  echo:      {a: red,    b: rust,   c: amber,  e: white}
+
+# Named enemies. `method` is an NPC version (scripts/eval_*): a players.yaml archetype, 'scripted' (the scripted
+# baseline NPC), 'ppo_none', 'ppo_predicted' or 'mbom'. Difficulty tags order the enemies by how sophisticated they
+# are, they are not measured against humans.
+enemies:
+  - {key: dummy,  name: "TRAINING DUMMY", method: camper,        look: dummy,  accessory: none,
+     tag: TUTORIAL, desc: "BLOCKS AND POKES. LEARN THE CONTROLS."}
+  - {key: rusty,  name: "RUSTY",          method: scripted,      look: rusty,  accessory: scarf,
+     tag: EASY,     desc: "HAND-CODED TACTICS. NEVER CHANGES."}
+  - {key: reflex, name: "REFLEX",         method: ppo_none,      look: reflex, accessory: visor,
+     tag: MEDIUM,   desc: "TRAINED FIGHTER. FAST BUT PREDICTABLE."}
+  - {key: seer,   name: "SEER",           method: ppo_predicted, look: seer,   accessory: antennae,
+     tag: HARD,     desc: "GUESSES YOUR NEXT MOVE AND COUNTERS."}
+  - {key: echo,   name: "ECHO",           method: mbom,          look: echo,   accessory: crest,
+     tag: EXPERT,   desc: "ADAPTS WHEN YOU CHANGE YOUR STYLE."}
+
+tags:                      # difficulty tag -> palette colour
+  TUTORIAL: silver
+  EASY: green
+  MEDIUM: amber
+  HARD: orange
+  EXPERT: red
+
+colors:                    # UI roles -> palette names
+  floor_a: night
+  floor_b: ink
+  wall: slate
+  text: white
+  dim: steel
+  hp: green
+  stamina: amber
+  bar_back: slate
+  hit: red
+  stun: violet
+  title: amber
+  title_shadow: rust

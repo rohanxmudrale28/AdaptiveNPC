@@ -1,7 +1,7 @@
 # Human-play rendering and controls. Game tick rate (steps/s) is independent of render fps.
 seed: 0
 
-tick_rate: 8           # game steps per second (override with --tick-rate)
+tick_rate: 4           # game steps per second (override with --tick-rate); also the default of the shell speed option
 fps: 60                # render frames per second
 tile_size: 64          # px per grid tile
 hud_height: 72         # px, top strip for HP / stamina / score

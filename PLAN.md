@@ -578,7 +578,8 @@ Conventions:
   - [x] Commit
 
 ### Tier 4 — Demo + human study
-- [ ] **M12 Demo panel**
+- [ ] **M12 Game shell + demo panel**
+  - [x] Stage 1, game shell (`configs/ui.yaml`, `adaptive_npc/ui/`, retro `render/retro.py`): title, opponent select, HUD, pause, results, `--blind` logging
   - [ ] Live bars for the predicted next action
   - [ ] α over IOP levels
   - [ ] Posterior over player archetypes, shown in `play.py`
