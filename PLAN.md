@@ -578,12 +578,13 @@ Conventions:
   - [x] Commit
 
 ### Tier 4 — Demo + human study
-- [ ] **M12 Game shell + demo panel**
+- [x] **M12 Game shell + demo panel**
   - [x] Stage 1, game shell (`configs/ui.yaml`, `adaptive_npc/ui/`, retro `render/retro.py`): title, opponent select, HUD, pause, results, `--blind` logging
-  - [ ] Live bars for the predicted next action
-  - [ ] α over IOP levels
-  - [ ] Posterior over player archetypes, shown in `play.py`
-  - [ ] Commit
+  - [x] Stage 2, demo panel (Tab, `--panel on`; hidden in `--blind`):
+    - [x] Live bars for the predicted next action, with the action taken highlighted and a running accuracy number
+    - [x] α over IOP levels (MBOM enemy only, with the 0.79 cap marked)
+    - [ ] ~~Posterior over player archetypes~~ (skipped by decision, not built)
+  - [x] Commit
 - [ ] **M13 Human eval**
   - [ ] `human_eval.py`: repeated matches per participant, logging to `results/human/`, with the tick rate taken from `render.yaml`
   - [ ] Analysis script
@@ -658,6 +659,7 @@ Conventions:
 20. **Human-play tick rate:**
     - Default: 8 game steps/s, with rendering at 60 fps.
     - Set in `render.yaml`, overridable with `--tick-rate`.
+    - Keys: WASD / arrows move, J attack, K block, L dodge, Enter confirm, Esc pause, H legend, F scanlines, **Tab** demo panel, **P** screenshot to `results/demo/`.
 21. **Learner drift:**
     - KL threshold `kl_min` = 0.05 nats, measured on 512 probe states between match start and match end.
     - Starting online LR: 3e-4. Tune upward until the threshold is met.
@@ -677,6 +679,8 @@ Conventions:
 - **Matches are 30 rounds, a default (Decision 5), not a tuned value, so learners had little time to adapt.** About 600–1,000 learner steps per match is roughly 0.1% of the 1M steps the offline exploiters needed (M9). The NPC's win rate against both learners is still falling at round 30 (`results/mbom/adaptive_test/win_rate_by_round.png`). So the adaptive-opponent results (H1) describe the early phase of adaptation, not where the learners would end up in a longer match.
 
 - **Γ errors compound with k.** After augmentation full-state exactness is 99.4% (1 step) and 98.8% (2 steps) on-policy, 98.9% / 97.3% under random actions. k-step beyond 2 was not measured. The weakest remaining cell is the reward on KO-loss steps (about 86%).
+
+- **The demo MBOM enemy only approximates the evaluated MBOM.** In `play.py` its ~3 s imagination update runs asynchronously in a worker thread, so it takes effect a few steps late, and a trigger that finds the worker busy is skipped. The reported MBOM numbers come from the synchronous evaluation (`ui.mbom_async: false` gives the synchronous demo version).
 
 ---
 
