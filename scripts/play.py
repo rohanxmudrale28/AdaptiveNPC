@@ -147,6 +147,7 @@ def main(argv=None):
     if last:
         w = last["rounds_won"]
         print(f"npc wins {w['npc']}, you win {w['human']}, draws {w['draw']}  (saved {last['path']})")
+    return last
 
 
 if __name__ == "__main__":

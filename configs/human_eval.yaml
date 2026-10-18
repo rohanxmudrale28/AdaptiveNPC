@@ -1,0 +1,16 @@
+# Human evaluation (M13). Tick rate, keys and fps come from render.yaml; NPC checkpoints from ui.yaml / mbom.yaml.
+seed: 1000                 # match seed = seed + match number (practice = seed)
+out_dir: results/human     # session files <ID>_session.json; per-match logs written by scripts/play.py --blind
+practice:
+  opponent: dummy          # key in ui.yaml enemies (Training Dummy)
+  rounds: 3
+  label: PRACTICE
+rounds_per_match: 10
+matches_per_npc: 2         # played back to back against the same labelled opponent (A, A, B, B)
+npcs: [scripted, ppo_predicted]   # ui.yaml enemy methods; which one is "A" is counterbalanced by participant ID
+labels: [A, B]
+ask_rating: true           # 1-5 difficulty rating in the console after each match (Enter skips)
+analysis:
+  alpha: 0.05              # 95% t-intervals across participants
+  smooth_window: 3         # moving-average window for the per-round curve plot
+  figure: human_eval.png   # saved in out_dir

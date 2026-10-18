@@ -585,10 +585,10 @@ Conventions:
     - [x] α over IOP levels (MBOM enemy only, with the 0.79 cap marked)
     - [ ] ~~Posterior over player archetypes~~ (skipped by decision, not built)
   - [x] Commit
-- [ ] **M13 Human eval**
-  - [ ] `human_eval.py`: repeated matches per participant, logging to `results/human/`, with the tick rate taken from `render.yaml`
-  - [ ] Analysis script
-  - [ ] Commit
+- [ ] **M13 Human eval** (code done; data collection and the analysis run are the user's)
+  - [x] `human_eval.py`: repeated matches per participant, logging to `results/human/`, with the tick rate taken from `render.yaml`
+  - [x] Analysis script (`analyze_human.py`)
+  - [x] Commit (code only)
 - [x] **M14 Wrap-up**
   - [x] README: setup, play commands (menu, `--panel on`, `--blind`, Tab / P), reproduction commands, results summary, known limitations
   - [x] Final models in `models/final/` (predictor, env model, `ppo_none` / `ppo_predicted` seeds 0–4; 1.1 MB, whitelisted in `.gitignore`). Follow-up: exploiter seeds 0–2 and the pretrained learners (seeds 0–2, plus the reasoning learner's NPC model) were added (1.7 MB total), so exploiter and learner cells run from a fresh clone. The four scripts whose `--help` crashed under cp1252 now have ASCII docstrings.
