@@ -657,7 +657,7 @@ Conventions:
     - An archetype is dominant if it wins at least 65% against every other archetype.
     - Mirror-match tolerance: 45–55%.
 20. **Human-play tick rate:**
-    - Default: 8 game steps/s, with rendering at 60 fps.
+    - Default: 4 game steps/s, with rendering at 60 fps. Lowered from 8 after play-testing because 8 was too fast to read.
     - Set in `render.yaml`, overridable with `--tick-rate`.
     - Keys: WASD / arrows move, J attack, K block, L dodge, Enter confirm, Esc pause, H legend, F scanlines, **Tab** demo panel, **P** screenshot to `results/demo/`.
 21. **Learner drift:**
