@@ -58,6 +58,15 @@ def groups(fc):
     return out
 
 
+def group_type(fc, gname):
+    """Pre-registered role of a group: the seed-split exploiter groups are the claim groups."""
+    if "@" in gname:
+        return "claim group (pre-registered)"
+    if gname in fc.get("exploratory_groups", []):
+        return "exploratory (not a pre-registered claim group)"
+    return "per-opponent, descriptive (not a claim group)"
+
+
 def h2_supported(fc):
     p = Path(fc.get("h2_summary") or "")
     if not fc.get("h2_summary") or not p.exists():
@@ -127,22 +136,29 @@ def aggregate(cfg, plan):
                             "better" if sig and f["paired_mean"] > 0 else
                             "worse" if sig and f["paired_mean"] < 0 else "no detectable difference")
             f["practically_significant"] = bool(abs(f["paired_mean"]) >= float(fc["min_gain"])) if f["n_matches"] else ""
-        for a, b in plan["secondary"]:  # outside the Holm family: unadjusted p, no verdict
-            s = {"group": gname, "family": "secondary", **compare(rows, a, b, sel)}
-            s.update({"p_holm": float("nan"), "verdict": "secondary (unadjusted)", "practically_significant":
+        extra = [(c, "secondary", "secondary (unadjusted)") for c in plan["secondary"]]
+        extra += [(c, "exploratory (not pre-registered)", "not pre-registered (unadjusted)")
+                  for c in fc.get("exploratory", [])]
+        for (a, b), family, verdict in extra:  # outside the Holm family: unadjusted p, no verdict
+            s = {"group": gname, "family": family, **compare(rows, a, b, sel)}
+            s.update({"p_holm": float("nan"), "verdict": verdict, "practically_significant":
                       bool(abs(s["paired_mean"]) >= float(fc["min_gain"])) if s["n_matches"] else ""})
             fam.append(s)
+        for f in fam:
+            f["group_type"] = group_type(fc, gname)
         comps += fam
     write_csv(root / "comparisons.csv", comps)
     print(f"{'method':22s}{'status':>12s}{'cpu':>10s}")
     for s in status:
         print(f"{s['method']:22s}{s['status']:>12s}{s['cpu_minutes']:>10.1f} cpu-min  {s['errors'][:80]}")
-    print(f"\n{'group':28s}{'comparison':40s}{'n':>5s}{'paired':>9s}{'+-95%':>7s}{'p_holm':>8s}  verdict")
+    print(f"\n{'group':28s}{'comparison':40s}{'n':>5s}{'paired':>9s}{'+-95%':>7s}{'p':>8s}{'p_holm':>8s}{'|g|>=min':>9s}"
+          f"  verdict")
     for c in comps:
-        if c["group"] in fc["opponents"] and c["group"] not in fc["exploiters"]:
-            continue  # per-opponent rows are in the CSV; print the exploiter claim groups
+        if c["group_type"].startswith("per-opponent"):
+            continue  # descriptive per-opponent rows are in the CSV; print the claim and exploratory groups
+        tag = " [exploratory group]" if c["group_type"].startswith("exploratory") else ""
         print(f"{c['group']:28s}{c['comparison']:40s}{c['n_matches']:>5d}{c['paired_mean']:>+9.3f}{c['paired_ci95']:>7.3f}"
-              f"{c['p_holm']:>8.3f}  {c['verdict']}")
+              f"{c['p']:>8.4f}{c['p_holm']:>8.4f}{str(c['practically_significant']):>9s}  {c['verdict']}{tag}")
     print(f"wrote {root}")
 
 

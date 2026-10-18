@@ -195,4 +195,8 @@ final:                            # M10 final grid (PLAN.md M10, pre-registered)
     - [mbom_single_level2, mbom]
   secondary_if_h2:                # reported, unadjusted, outside the Holm family
     - [mbom_random_finetune, mbom]
+  exploratory:                    # added after the final run: NOT pre-registered, unadjusted, every group
+    - [ppo_predicted, ppo_none]
+    - [ppo_predicted, scripted]
+  exploratory_groups: [naive_learner, reasoning_learner]   # not claim groups: labeled exploratory
   min_gain: 0.05                  # practical-significance threshold (same as go/no-go)

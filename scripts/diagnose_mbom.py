@@ -49,10 +49,47 @@ def phase_rows(trace, tau, keys):
     return out
 
 
+def print_phases(phases):
+    print(f"{'method':22s}{'opp/seed':>18s}{'phase':>7s}{'acc_l0':>8s}{'acc_l1':>8s}{'acc_l2':>8s}{'acc_mix':>8s}"
+          f"{'a_l0':>6s}{'a_l1':>6s}{'a_l2':>6s}{'H_in':>6s}{'H_phi0':>7s}{'max_in':>7s}{'max_phi0':>9s}{'chg':>6s}"
+          f"{'q_spr':>7s}{'br_max':>7s}")
+    for r in phases:
+        print(f"{r['method']:22s}{str(r.get('opponent', r.get('seed'))):>18s}{r['phase']:>7s}{r['acc_l0']:>8.3f}"
+              f"{r['acc_l1']:>8.3f}{r['acc_l2']:>8.3f}{r['acc_mixed']:>8.3f}{r['alpha_l0_mean']:>6.2f}"
+              f"{r['alpha_l1_mean']:>6.2f}{r['alpha_l2_mean']:>6.2f}{r['input_entropy']:>6.2f}{r['phi0_entropy']:>7.2f}"
+              f"{r['input_maxprob']:>7.2f}{r['phi0_maxprob']:>9.2f}{r['argmax_changed']:>6.3f}{r['q_spread']:>7.3f}"
+              f"{r['br_target_maxprob_bound']:>7.3f}")
+
+
+def diagnose_adaptive(cfg, test):
+    """Same phase tables for an opponent test (adaptive_test layout: <out>/<opponent>/<method>/seed_<n>/)."""
+    at, tau = cfg[test], float(cfg["imagination"]["tau_br"])
+    src = Path(at["out_dir"])
+    out = src / "diagnosis"
+    out.mkdir(parents=True, exist_ok=True)
+    phases = []
+    for opp in at["opponents"]:
+        for method in [m for m in at["methods"] if m.startswith("mbom")]:
+            t = []
+            for seed in at["seeds"]:
+                p = src / opp / method / f"seed_{seed}" / "mbom_rounds.csv"
+                if p.exists():
+                    t += [{**r, "seed": seed} for r in read(p)]
+            if t:
+                phases += phase_rows(t, tau, {"opponent": opp, "method": method})
+    write_csv(out / "phases.csv", phases)
+    print_phases(phases)
+    print(f"wrote {out}")
+
+
 def main():
     parser = add_config_args(argparse.ArgumentParser(description=__doc__))
+    parser.add_argument("--test", default=None, help="opponent-test block (adaptive_test layout) instead of gonogo")
     args = parser.parse_args()
     cfg = config_from_args(args)
+    if args.test:
+        diagnose_adaptive(cfg, args.test)
+        return
     g, tau = cfg["gonogo"], float(cfg["imagination"]["tau_br"])
     src = Path(args.out or g["out_dir"])
     out = src / "diagnosis"
