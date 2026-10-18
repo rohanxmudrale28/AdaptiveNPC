@@ -330,6 +330,32 @@ Conventions:
       | pooled (105 matches) | 0.921 (0.96 → 0.87) | 0.932 | 0.931 | −0.011 ± 0.020 | −0.010 ± 0.019 | 0.81 / −0.01 ± 0.10 |
 
       Imagination doesn't help against these adapting opponents. The learners adapt by online PPO (slowly, M9) rather than by reasoning about the NPC, so a k = 2 best response isn't what they converge to either. No defaults were changed.
+    - **Learner diagnosis (from the saved adaptive-test traces, no new runs; `scripts/diagnose_mbom.py --test adaptive_test` → `results/mbom/adaptive_test/diagnosis/phases.csv`)**, step-weighted, rounds 1–5 / 6–25 / 26–30:
+
+      | | naive_learner | reasoning_learner |
+      |---|---|---|
+      | φ0 accuracy (mbom) | 0.396 / 0.727 / 0.836 | 0.387 / 0.646 / 0.750 |
+      | φ1 accuracy (mbom) | 0.125 / 0.123 / 0.148 | 0.098 / 0.144 / 0.159 |
+      | φ2 accuracy (mbom) | 0.139 / 0.157 / 0.194 | 0.125 / 0.159 / 0.168 |
+      | untouched pretrained copy (no_imagination φ1 = φ2) | 0.282 / 0.362 / 0.410 | 0.257 / 0.291 / 0.301 |
+      | α on φ0 / φ1 / φ2 | 0.59/0.20/0.21 → 0.78/0.11/0.11 → 0.78/0.11/0.11 | 0.65/0.17/0.18 → 0.77/0.11/0.11 → 0.78/0.11/0.11 |
+      | policy input entropy, mixed vs φ0 | 1.78 vs 1.53 / 1.36 vs 0.86 / 1.18 vs 0.57 | 1.73 vs 1.45 / 1.42 vs 0.94 / 1.29 vs 0.73 |
+      | policy input max-prob, mixed vs φ0 | 0.35 vs 0.43 / 0.57 vs 0.69 / 0.66 vs 0.80 | 0.36 vs 0.45 / 0.53 vs 0.65 / 0.60 vs 0.74 |
+      | steps where the policy's argmax changes | 3.1% / 4.6% / 5.1% | 3.7% / 6.9% / 7.4% |
+      | Q spread per update (implied max BR target prob) | 0.078 / 0.089 / 0.096 (0.24–0.27) | 0.070 / 0.078 / 0.088 (0.22–0.26) |
+
+      - **Yes, φ0 still beats φ1 and φ2 against both learners, by a wide margin.** φ0 reaches 0.84 / 0.75 late, while φ1 and φ2 stay at 0.10–0.19, below chance-adjacent and well below the untouched pretrained copy (0.30–0.41). This is the same pattern as against the exploiter.
+      - The mixer again moves to φ0 and sits at the 0.78 cap from round ~6. The remaining 22% widens the gap between the mixed input and φ0's (entropy gap 0.25 → 0.61 nats vs naive), and the policy's argmax flips on 5–7% of late steps.
+      - The best-response targets are flatter than against the exploiter. The Q spread is 0.07–0.10 (vs 0.15–0.21), so the best action gets at most 0.22–0.27 vs uniform 0.125. Imagination barely distinguishes the candidate actions here.
+      - Side note, switcher (same CSV): the untouched pretrained copy predicts the switcher better than the online-finetuned φ0 late in the match (0.96 vs 0.91), so the φ0 finetune (lr 1e-3) slightly hurts against known archetypes.
+    - **NPC win rate per round vs the learners** (`scripts/plot_adaptive_rounds.py` → `results/mbom/adaptive_test/win_rate_by_round.png` / `.csv`; 35 matches per point, per-point 95% CI ≈ ±0.08):
+
+      | | rounds 1–5 | rounds 11–20 | rounds 26–30 |
+      |---|---|---|---|
+      | naive: mbom / no_imagination / ppo_predicted | 0.937 / 0.963 / 0.920 | 0.876 / 0.901 / 0.910 | 0.769 / 0.769 / 0.786 |
+      | reasoning: mbom / no_imagination / ppo_predicted | 0.943 / 0.946 / 0.954 | 0.900 / 0.926 / 0.931 | 0.846 / 0.823 / 0.829 |
+
+      All three NPCs decline steadily over the match as the learners adapt, and the curves overlap within the per-round noise. The decline hasn't levelled off by round 30.
     - **Lookahead opponent and H2 (pre-registered before any run; `adaptive_npc/players/lookahead.py`, `lookahead:` / `h2_test:` in `configs/mbom.yaml`).** This is the test imagination should pass if it works.
       - The lookahead opponent assumes the NPC is plain `ppo_predicted`. Each step it predicts the NPC's action with the cell's frozen `ppo_predicted` checkpoint, fed by the pretrained, frozen φ0.
       - It then picks the action that maximizes the eq.-5 imagined return from its own side. It reuses `imagined_returns` with MBOM's settings: k = 2 random continuations, 16 samples, stochastic NPC, max over continuations, bootstrap −γ³V. It runs in the true simulator, reconstructs the raw state exactly from its observation, and plays a uniformly random action with ε = 0.05. No online learning.
@@ -337,6 +363,21 @@ Conventions:
       - **H2:** against the lookahead opponent, MBOM beats `no_imagination` by at least 0.05 (mean win rate over the 5 cells), **and** the 95% t-interval of the paired per-match difference is above 0. Design: NPC seeds 0–4, 7 matches × 30 rounds per cell, fresh state per match, paired seeds (env seed base 50000), with `ppo_predicted` also reported.
       - The opponent's settings are fixed now and **will not be tuned after the run**, whatever the result.
       - `scripts/dev_variants.py --test h2_test` prints SUPPORTED / NOT SUPPORTED.
+    - **H2 result (user run, `results/mbom/h2_lookahead/summary.csv`): NOT SUPPORTED.** mbom − `no_imagination` = −0.007 over cells; paired −0.007 ± 0.041 over 35 matches, CI low −0.048 (needed ≥ +0.05 and CI low > 0). The opponent and the criterion are unchanged.
+
+      | method | win rate | rounds 1–5 → 26–30 | damage taken (of 5 HP) |
+      |---|---|---|---|
+      | `mbom` | 0.116 | 0.106 → 0.126 | 4.67 |
+      | `mbom_no_imagination` | 0.122 | 0.111 → 0.094 | 4.65 |
+      | `ppo_predicted` | 0.098 | 0.077 → 0.097 | 4.73 |
+
+      | comparison (35 paired matches) | win rate | damage taken |
+      |---|---|---|
+      | mbom − `no_imagination` | −0.007 ± 0.041 | +0.02 ± 0.09 |
+      | mbom − `ppo_predicted` | +0.018 ± 0.032 | −0.06 ± 0.07 |
+
+      - **Floor effect:** every method won only about 0.10–0.12 of rounds against the lookahead opponent and lost about 4.7 of 5 HP per round. The lookahead opponent dominates all three NPCs, so there is little room for any of them to differ. H2 therefore says imagination doesn't rescue the NPC against an opponent this much stronger. It can't say whether imagination helps against a level-1 reasoner the NPC can compete with.
+      - **H1 and H2 were both not supported.** Imagination gave no detectable benefit against adaptive learners (H1) or against the lookahead opponent it is designed to model (H2). Per Amendment 1, `mbom_single_level2` and `mbom_random_finetune` are **not** run on the final grid.
   - [ ] Commit
 - [x] **M9 Learning opponents** (built before M7/M8)
   - [x] `ppo_lite.py`: trains the SB3 `ActorCriticPolicy` loaded from a `.pt` in place (GAE, clip, normalized advantages, `target_kl` early stop, grad clip, `critic_warmup_updates`)
@@ -568,6 +609,8 @@ Conventions:
 - **The exploit exists but is out of reach online.** Offline exploiters, starting from the same pretrained naive policy, beat `ppo_predicted` (win rate 0.70–0.81 mean over 3 seeds), but they needed 1M training steps. A 30-round match gives an online learner only about 600–1,000 steps, roughly 0.1% of that budget, so the learners can't find the exploit within a match. The online learners' "lose" verdict vs `ppo_predicted` reflects the match budget, not an unexploitable NPC.
 - **Cross-eval cells aren't independent samples.** The 15 cells per NPC mode cross 3 exploiters with 5 NPC checkpoints, so every exploiter appears in 5 cells and every NPC seed in 3. The pooled 95% CI treats the 15 cells as independent (t-interval, 14 df), so it understates the uncertainty. The real sample sizes are 3 exploiters and 5 NPC seeds, and the cell-to-cell spread (0.07–0.995 vs `ppo_predicted`) mixes exploiter effects, NPC-seed effects and their interaction, which 15 cells can't separate. Read the pooled numbers as descriptive, and use the per-cell table.
 - **KL is uninformative for near-deterministic policies.** The pretrained learners' entropy is only about 0.07–0.3 nats (maximum ln 8 ≈ 2.08). With so little probability mass off the argmax, small logit changes give large KL(π_start ‖ π_end): even the smallest LR gives 0.2–3.2 nats, far above `kl_min` = 0.05, so the threshold passes trivially. KL is reported, but the per-round score, damage and entropy are the meaningful signals. KL above `kl_min` does not mean the learner adapted usefully.
+
+- **Matches are 30 rounds, a default (Decision 5), not a tuned value, so learners had little time to adapt.** About 600–1,000 learner steps per match is roughly 0.1% of the 1M steps the offline exploiters needed (M9). The NPC's win rate against both learners is still falling at round 30 (`results/mbom/adaptive_test/win_rate_by_round.png`). So the adaptive-opponent results (H1) describe the early phase of adaptation, not where the learners would end up in a longer match.
 
 - **Γ errors compound with k.** After augmentation full-state exactness is 99.4% (1 step) and 98.8% (2 steps) on-policy, 98.9% / 97.3% under random actions. k-step beyond 2 was not measured. The weakest remaining cell is the reward on KO-loss steps (about 86%).
 
