@@ -344,7 +344,7 @@ Conventions:
       | steps where the policy's argmax changes | 3.1% / 4.6% / 5.1% | 3.7% / 6.9% / 7.4% |
       | Q spread per update (implied max BR target prob) | 0.078 / 0.089 / 0.096 (0.24–0.27) | 0.070 / 0.078 / 0.088 (0.22–0.26) |
 
-      - **Yes, φ0 still beats φ1 and φ2 against both learners, by a wide margin.** φ0 reaches 0.84 / 0.75 late, while φ1 and φ2 stay at 0.10–0.19, below chance-adjacent and well below the untouched pretrained copy (0.30–0.41). This is the same pattern as against the exploiter.
+      - **Yes, φ0 still beats φ1 and φ2 against both learners, by a wide margin.** φ0 reaches 0.84 / 0.75 late, while φ1 and φ2 stay at 0.10–0.19, around chance (1/8 = 0.125) and well below the untouched pretrained copy (0.30–0.41). This is the same pattern as against the exploiter.
       - The mixer again moves to φ0 and sits at the 0.78 cap from round ~6. The remaining 22% widens the gap between the mixed input and φ0's (entropy gap 0.25 → 0.61 nats vs naive), and the policy's argmax flips on 5–7% of late steps.
       - The best-response targets are flatter than against the exploiter. The Q spread is 0.07–0.10 (vs 0.15–0.21), so the best action gets at most 0.22–0.27 vs uniform 0.125. Imagination barely distinguishes the candidate actions here.
       - Side note, switcher (same CSV): the untouched pretrained copy predicts the switcher better than the online-finetuned φ0 late in the match (0.96 vs 0.91), so the φ0 finetune (lr 1e-3) slightly hurts against known archetypes.
