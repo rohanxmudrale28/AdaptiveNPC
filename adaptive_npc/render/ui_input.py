@@ -1,11 +1,12 @@
-"""pygame events -> shell commands (up/down/left/right/confirm/back/help/scanlines/quit)."""
+"""pygame events -> shell commands (up/down/left/right/confirm/back/help/scanlines/quit, plus mute / volume_up / volume_down for the sound layer)."""
 import pygame
 
 
 class UIKeys:
     def __init__(self, ui_keys, render_keys):
         self.bind = {}
-        for cmd, names in (*((k, ui_keys[k]) for k in ("confirm", "back", "help", "scanlines", "panel", "screenshot")),
+        for cmd, names in (*((k, ui_keys[k]) for k in ("confirm", "back", "help", "scanlines", "panel", "screenshot",
+                                                         "mute", "volume_up", "volume_down")),
                            *((k, render_keys[k]) for k in ("up", "down", "left", "right"))):
             self.bind[cmd] = {pygame.key.key_code(n) for n in names}
 

@@ -20,6 +20,17 @@ keys:                      # shell keys (pygame key names); gameplay keys are in
   scanlines: [f]
   panel: [tab]            # demo panel (predictor bars, accuracy, MBOM alpha); hidden in --blind
   screenshot: [p]         # saves the window to results/demo/
+  mute: [m]               # sound: mute / unmute everything
+  volume_up: ["=", "+", "[+]"]
+  volume_down: ["-", "[-]"]
+
+audio:                     # synthesized sound (adaptive_npc/audio/); never touches game state. --mute / --no-music override
+  volume: 0.5              # master volume 0..1 (M mutes, +/- change it by volume_step)
+  volume_step: 0.1
+  music: true              # menu + fight music (off by default in --blind and in scripts/human_eval.py; --music turns it on)
+  music_ratio: 0.3         # music loudness relative to the effects
+  sample_rate: 22050
+  noise_seed: 0            # seed of the noise used in the effects, so the sounds are identical on every run
 
 speed:                     # steps per second shown on the opponent select screen. Default = render.yaml tick_rate
   options: [2, 3, 4, 6, 8]

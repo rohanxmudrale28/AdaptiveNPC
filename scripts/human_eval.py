@@ -4,6 +4,7 @@ of two blind opponents (A and B = the scripted NPC and ppo_predicted, order coun
 python -m scripts.human_eval --participant P01
 python -m scripts.human_eval --participant P02 --no-rating
 python -m scripts.human_eval --participant P01 --dry-run        # print the plan only, no window
+python -m scripts.human_eval --participant P01 --music          # sound effects are always on; music is off unless asked
 Logs: results/human/<ID>_session.json (plan, ratings, per-match logs). Only the ID is stored, no personal data.
 """
 import argparse
@@ -59,6 +60,9 @@ def run_match(entry, participant, args, play_main):
             "--rounds", str(entry["rounds"]), "--seed", str(entry["seed"]), "--set", f"ui.human_dir={args.out_dir}/matches"]
     if args.tick_rate is not None:
         argv += ["--tick-rate", str(args.tick_rate)]
+    argv += ["--music"] if args.music else ["--no-music"]
+    if args.mute:
+        argv += ["--mute"]
     return play_main(argv)
 
 
@@ -69,6 +73,8 @@ def main(argv=None, play_main=None, input_fn=input):
     p.add_argument("--tick-rate", type=float, default=None, help="override render.yaml tick_rate")
     p.add_argument("--no-rating", action="store_true", help="skip the difficulty-rating prompt")
     p.add_argument("--dry-run", action="store_true", help="print the plan and exit")
+    p.add_argument("--music", action="store_true", help="play music too (default: off; effects are the same for every opponent)")
+    p.add_argument("--mute", action="store_true", help="start with all sound muted")
     p.add_argument("--out-dir", default=None)
     p.add_argument("--set", dest="overrides", action="append", default=[], metavar="KEY=VALUE")
     args = p.parse_args(argv)

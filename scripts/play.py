@@ -6,7 +6,9 @@ python -m scripts.play --opponent mbom --blind --label B --participant P01    # 
 Opponents: a named enemy from configs/ui.yaml (dummy, rusty, reflex, seer, echo), an NPC version (scripted, ppo_none,
 ppo_predicted, mbom), or any players.yaml archetype / random / switcher. Tick rate: --tick-rate or the select screen.
 Controls are in configs/render.yaml (WASD/arrows move, J attack, K block, L dodge, Enter confirm, Esc pause,
-H legend, F scanlines, Tab demo panel, P screenshot). `--set ui.<key>=value` overrides configs/ui.yaml, other --set keys override render.yaml.
+H legend, F scanlines, Tab demo panel, P screenshot, M mute, +/- volume). Sound is synthesized (no files):
+--mute starts silent, --no-music keeps effects only, --music forces music on (it is off by default with --blind).
+`--set ui.<key>=value` overrides configs/ui.yaml, other --set keys override render.yaml.
 """
 import argparse
 import re
@@ -16,6 +18,7 @@ from pathlib import Path
 
 import pygame
 
+from adaptive_npc.audio.player import SoundManager
 from adaptive_npc.config import apply_overrides, load_config
 from adaptive_npc.npc.live import build_live_npc
 from adaptive_npc.players.base import RandomPlayer
@@ -54,6 +57,10 @@ def build_parser():
                    help="human test: hide enemy names, NPC header and panel; log the real NPC version to results/human/")
     p.add_argument("--participant", default="P00", help="participant ID for --blind logs (no personal data)")
     p.add_argument("--label", default="A", help="'Opponent <label>' shown in --blind mode")
+    p.add_argument("--mute", action="store_true", help="start with all sound muted (M toggles)")
+    music = p.add_mutually_exclusive_group()
+    music.add_argument("--no-music", action="store_true", help="effects only, no music")
+    music.add_argument("--music", action="store_true", help="music on even with --blind (off by default there)")
     p.add_argument("--set", dest="overrides", action="append", default=[], metavar="KEY=VALUE")
     return p
 
@@ -117,6 +124,8 @@ def main(argv=None):
         last.update(summary, path=str(path))
 
     pygame.init()
+    use_music = not args.no_music and (args.music or (bool(ui["audio"]["music"]) and not args.blind))
+    sound = SoundManager(ui["audio"], mute=args.mute, music=use_music)   # warns once and stays silent if no audio device
     keys = KeyboardInput(cfg["keys"])
     shell = S.Shell(ui, enemies, tick_rate, make_session, has_menu=menu, select_enabled=menu and not args.blind,
                     enemy_index=enemy_idx, blind=args.blind, label=label, on_match_end=on_match_end,
@@ -136,11 +145,15 @@ def main(argv=None):
             cmd = ui_keys.command(ev)
             if cmd == "screenshot":
                 print(f"screenshot: {view.save_screenshot(ui['results_dir'])}")
+            elif cmd in ("mute", "volume_up", "volume_down"):
+                sound.control(cmd)
             elif cmd:
+                sound.command(cmd, shell.state)
                 shell.handle(cmd)
             if shell.state == S.PLAY:
                 keys.handle_event(ev)
         shell.update(dt, keys.poll)
+        sound.observe(shell)
         view.draw(shell, dt)
         dt = min(frame_clock.tick(fps) / 1000.0, 0.25)
     pygame.quit()

@@ -41,7 +41,8 @@ class Shell:
         self.count_t = 0.0
         self.pause_from = None
         self.legend_visible, self.legend_timer = False, None
-        self.fx = []                  # events of the latest update(), for the view: (kind, player)
+        self.fx = []                  # events of the latest update(), for view and sound: (kind, player)
+        self._was_blocking = [False, False]
         self.results = None
         self._reported = False
 
@@ -103,6 +104,7 @@ class Shell:
 
     def _enter_countdown(self):
         self.state, self.count_t = COUNTDOWN, 0.0
+        self._was_blocking = [False, False]
         self.input_clear()
 
     def _enter_play(self):
@@ -244,7 +246,7 @@ class Shell:
     # ------------------------------------------------------------------ time
     def update(self, dt, poll):
         """Advance by `dt` wall seconds. `poll()` returns the human's action for one game step. Returns the events
-        (kind, player) the steps of this update produced: hit, parry, dodge, ko."""
+        (kind, player) the steps of this update produced: attack, block (raised), hit, parry, dodge, ko."""
         self.t += dt
         self.fx = []
         if self.legend_timer is not None and self.state != PAUSE:
@@ -267,6 +269,10 @@ class Shell:
     def _events(self):
         g, out = self.session.game, []
         for i in (0, 1):
+            if g.cd[i] == g.atk_cooldown:         # cooldown is only ever set to this by an attack step
+                out.append(("attack", i))
+            if g.blocking[i] and not self._was_blocking[i]:
+                out.append(("block", i))
             if g.dealt[1 - i] > 0:
                 out.append(("hit", i))
             if g.parried[i]:
@@ -275,4 +281,5 @@ class Shell:
                 out.append(("dodge", i))
             if g.hp[i] <= 0:
                 out.append(("ko", i))
+        self._was_blocking = list(g.blocking)
         return out

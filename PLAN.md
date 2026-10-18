@@ -584,6 +584,7 @@ Conventions:
     - [x] Live bars for the predicted next action, with the action taken highlighted and a running accuracy number
     - [x] α over IOP levels (MBOM enemy only, with the 0.79 cap marked)
     - [ ] ~~Posterior over player archetypes~~ (skipped by decision, not built)
+  - Stage 3, sound (`adaptive_npc/audio/`, `audio:` block in `ui.yaml`): synthesized effects and two looping chiptunes (no audio files), M / +/- keys, `--mute` / `--no-music` / `--music`; music off by default in `--blind` and `human_eval.py`. Code and tests done; the by-ear check is the user's.
   - [x] Commit
 - [ ] **M13 Human eval** (code done; data collection and the analysis run are the user's)
   - [x] `human_eval.py`: repeated matches per participant, logging to `results/human/`, with the tick rate taken from `render.yaml`

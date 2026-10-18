@@ -70,7 +70,10 @@ ECHO (MBOM). `--opponent` also accepts any archetype (`rusher`, `camper`, `repea
 (`--set ui.<key>=value` overrides `ui.yaml`).
 
 Keys: WASD / arrows move, **J** attack, **K** block, **L** dodge, Enter confirm, Esc pause, H legend, F scanlines,
-**Tab** toggles the demo panel, **P** saves a screenshot to `results/demo/`.
+**Tab** toggles the demo panel, **P** saves a screenshot to `results/demo/`, **M** mutes / unmutes all sound,
+**+** / **-** change the volume (default 0.5, set in `configs/ui.yaml`). Sound is synthesized in code; `--mute` starts
+silent and `--no-music` keeps the effects only. With `--blind` (and in `scripts/human_eval.py`) music is off by
+default (`--music` turns it on) and every opponent gets the same effects.
 
 - **Demo panel (Tab, or `--panel on`):** live bars for the NPC's predicted next player action (the action you took is
   highlighted), a running prediction accuracy, and, against the MBOM enemy, the mixer weights α over the IOP levels
