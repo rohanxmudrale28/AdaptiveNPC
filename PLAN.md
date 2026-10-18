@@ -290,6 +290,46 @@ Conventions:
       - **H1:** mbom − `no_imagination` > 0 on pooled paired win rate (95% CI low > 0). Also reported per opponent and vs `ppo_predicted`.
       - Secondary: paired damage taken (lower is better), because `ppo_predicted` wins about 100% against learners (M9) and the switcher (M6), so win rate is likely saturated. If all methods are at ≥ 0.95, H1 is reported as untestable on win rate and the conclusion rests on damage taken.
       - This is not a decision gate. Learners and the switcher aren't exploiters 0 or 2, so this stays within the development set.
+    - **Dev-variant results (user run; `results/mbom/dev_variants.csv`, `scripts/dev_variants.py`; development set only).** Every variant tried is listed; **none failed** (status ok for all 10 variants × 2 designs).
+      - Exploiter design: `exploiter_seed1`, 5 NPC seeds × 7 matches, paired with the go/no-go seeds. The three references are the reused go/no-go runs.
+      - Diff columns: paired win-rate difference ± 95% CI over 35 matches. Win rate is NPC-side, draws = ½. CPU = single-thread minutes, both designs.
+
+      | variant | overrides | win rate | rounds 1–5 | 26–30 | damage | mixed acc | argmax changed | vs mbom | vs no_imagination | vs ppo_predicted | CPU min |
+      |---|---|---|---|---|---|---|---|---|---|---|---|
+      | mbom (ref) | – | 0.454 | 0.286 | 0.554 | 3.22 | 0.608 | 0.053 | – | −0.050 ± 0.031 | +0.004 ± 0.034 | reused |
+      | mbom_no_imagination (ref) | – | 0.504 | 0.309 | 0.566 | 2.98 | 0.589 | 0.000 | +0.050 ± 0.031 | – | +0.054 ± 0.039 | reused |
+      | ppo_predicted (ref) | – | 0.450 | 0.337 | 0.526 | 3.24 | – | – | −0.004 ± 0.034 | −0.054 ± 0.039 | – | reused |
+      | top_level | `cond_input=top_level` | 0.501 | 0.311 | 0.577 | 3.00 | 0.595 | 0.001 | +0.047 ± 0.032 | −0.003 ± 0.012 | +0.051 ± 0.039 | 336 + 126 |
+      | npc_samples4 | `npc_samples=4` | 0.442 | 0.286 | 0.531 | 3.22 | 0.607 | 0.053 | −0.012 ± 0.024 | −0.062 ± 0.035 | −0.008 ± 0.036 | 1145 + 312 |
+      | uniform_mix | `mbom_uniform_mix` | 0.336 | 0.263 | 0.400 | 3.72 | 0.588 | 0.149 | −0.119 ± 0.054 | −0.169 ± 0.061 | −0.115 ± 0.055 | 324 + 140 |
+      | single_level1 | `mbom_single_level1` | 0.252 | 0.289 | 0.223 | 4.02 | 0.181 | 0.211 | −0.202 ± 0.050 | −0.252 ± 0.059 | −0.199 ± 0.056 | 162 + 94 |
+      | prior_fast | `prior_avg=0.7, prior_floor=0.05` | 0.453 | 0.297 | 0.549 | 3.21 | 0.606 | 0.056 | −0.001 ± 0.027 | −0.051 ± 0.036 | +0.002 ± 0.034 | 335 + 127 |
+      | prior_slow | `prior_avg=0.97, prior_floor=0.002` | 0.431 | 0.263 | 0.523 | 3.32 | 0.613 | 0.055 | −0.023 ± 0.028 | −0.073 ± 0.035 | −0.020 ± 0.034 | 357 + 116 |
+      | oracle_debug (**debug, not reported**) | `oracle_model=true` | 0.458 | 0.286 | 0.571 | 3.18 | 0.608 | 0.052 | +0.003 ± 0.021 | −0.047 ± 0.031 | +0.007 ± 0.038 | 368 + 113 |
+
+      - Archetype design (6 train archetypes × 5 NPC seeds × 1 match): win rate is saturated (0.996–1.000 for every variant, all paired differences within ±0.005).
+        - Damage taken per round: mbom 0.16, no_imagination 0.16, ppo_predicted 0.14, top_level 0.15, npc_samples4 0.15, prior_fast 0.16, prior_slow 0.16, uniform_mix 0.21, single_level1 0.44.
+        - Argmax changed: mbom 0.045, top_level 0.0001, uniform_mix 0.14, single_level1 0.23.
+      - **Pre-registered predictions:**
+        - **Held:** `top_level` recovers `no_imagination` (−0.003 ± 0.012). With φ0 fed alone, argmax flips drop from 5.3% to 0.1%.
+        - **Held:** the prior settings don't matter much. `prior_fast` is −0.001 ± 0.027 vs mbom; `prior_slow` is −0.023 ± 0.028, a slight drop, CI includes 0.
+        - Lowering T was proposed only, not run.
+      - **Further findings:**
+        - Γ error is not the cause. Imagination with the true simulator (`oracle_debug`) matches mbom (+0.003 ± 0.021) and still trails `no_imagination` (−0.047 ± 0.031). The deficit comes from the best-response concept against this opponent, not from model error.
+        - Averaging the NPC's sampling noise doesn't help (`npc_samples4`: −0.012 ± 0.024 vs mbom at 3.5× the CPU).
+        - The mixer has value relative to not mixing. Uniform weights lose 0.119 and committing to φ1 alone loses 0.202 vs mbom, because the BR levels are bad predictors of this opponent (mixed accuracy 0.18 with φ1 alone). The mixer's job here is to down-weight them, and the α cap stops it from finishing the job.
+    - **Adaptive-opponent test result (H1; user run, `results/mbom/adaptive_test/summary.csv`): H1 not supported.**
+      - Win rate is not saturated against the learners (0.87–0.93; it falls over the match as the learners adapt, e.g. naive 0.94 → 0.77), so H1 is testable on win rate. It is saturated against the switcher (≈ 1.00).
+      - Pooled over 105 paired matches: mbom − `no_imagination` = −0.011 ± 0.020 (CI low −0.031); damage taken −0.011 ± 0.097 (no difference).
+
+      | opponent | mbom (1–5 → 26–30) | no_imagination | ppo_predicted | mbom − no_imag | mbom − ppo_pred | damage: mbom / Δ vs no_imag |
+      |---|---|---|---|---|---|---|
+      | naive_learner | 0.866 (0.94 → 0.77) | 0.890 (0.96 → 0.77) | 0.885 (0.92 → 0.79) | −0.024 ± 0.041 | −0.019 ± 0.042 | 1.11 / +0.11 ± 0.19 |
+      | reasoning_learner | 0.899 (0.94 → 0.85) | 0.905 (0.95 → 0.82) | 0.910 (0.95 → 0.83) | −0.007 ± 0.048 | −0.011 ± 0.042 | 1.14 / −0.15 ± 0.22 |
+      | switcher | 0.998 (1.00 → 1.00) | 0.999 | 0.999 | −0.001 ± 0.002 | −0.001 ± 0.002 | 0.18 / +0.01 ± 0.03 |
+      | pooled (105 matches) | 0.921 (0.96 → 0.87) | 0.932 | 0.931 | −0.011 ± 0.020 | −0.010 ± 0.019 | 0.81 / −0.01 ± 0.10 |
+
+      Imagination doesn't help against these adapting opponents. The learners adapt by online PPO (slowly, M9) rather than by reasoning about the NPC, so a k = 2 best response isn't what they converge to either. No defaults were changed.
   - [ ] Commit
 - [x] **M9 Learning opponents** (built before M7/M8)
   - [x] `ppo_lite.py`: trains the SB3 `ActorCriticPolicy` loaded from a `.pt` in place (GAE, clip, normalized advantages, `target_kl` early stop, grad clip, `critic_warmup_updates`)
