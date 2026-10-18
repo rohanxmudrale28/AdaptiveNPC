@@ -589,11 +589,12 @@ Conventions:
   - [ ] `human_eval.py`: repeated matches per participant, logging to `results/human/`, with the tick rate taken from `render.yaml`
   - [ ] Analysis script
   - [ ] Commit
-- [ ] **M14 Wrap-up**
-  - [ ] README usage section
-  - [ ] Final models in `models/final/`
-  - [ ] Report figures
-  - [ ] Commit
+- [x] **M14 Wrap-up**
+  - [x] README: setup, play commands (menu, `--panel on`, `--blind`, Tab / P), reproduction commands, results summary, known limitations
+  - [x] Final models in `models/final/` (predictor, env model, `ppo_none` / `ppo_predicted` seeds 0–4; 1.1 MB, whitelisted in `.gitignore`). Exploiter and learner checkpoints are not shipped.
+  - [x] Report figures in `report/figures/` with `captions.md`
+  - [x] Fresh-clone check: `requirements.txt` covers every import (BOM removed), `pytest` 156 passed, smoke configs run for predictor, NPC, env model, MBOM, final grid, exploiter and learners. `make_plots` fails on the smoke grid (it expects the 6 final methods), but reproduces `results/m11/` byte for byte from the real grid.
+  - [x] Commit
 
 ---
 

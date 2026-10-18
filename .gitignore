@@ -9,3 +9,7 @@ logs/
 .vscode/
 
 data/
+
+# final deliverable models (M14)
+!models/final/
+!models/final/**/*.pt
