@@ -39,3 +39,26 @@ def encode_raw(raw, who, spec):
     obs[:, 19] = sd[:, STUN0 + o] / stun_max
     obs[:, 20] = sd[:, T] / spec.max_steps
     return obs.float()
+
+
+def decode_obs(obs, who, spec):
+    """Inverse of encode_raw: observation(s) [N, OBS_DIM] (or [OBS_DIM]) from `who`'s view -> raw long [N, 15].
+    Every field is a scaled integer or a one-hot, so the state is recovered exactly (rounding)."""
+    if not isinstance(spec, EnvSpec):
+        spec = EnvSpec(spec)
+    o = torch.as_tensor(obs, dtype=torch.float64).reshape(-1, OBS_DIM)
+    span = float(max(spec.size - 1, 1))
+    cd_max, stun_max = float(max(spec.cd_max, 1)), float(max(spec.stun_max, 1))
+    r = lambda x: torch.round(x).long()  # noqa: E731
+    w, op = who, 1 - who
+    raw = torch.zeros(o.shape[0], 15, dtype=torch.long)
+    raw[:, X0 + 2 * w], raw[:, Y0 + 2 * w] = r(o[:, 0] * span), r(o[:, 1] * span)
+    raw[:, X0 + 2 * op] = raw[:, X0 + 2 * w] + r(o[:, 2] * span)
+    raw[:, Y0 + 2 * op] = raw[:, Y0 + 2 * w] + r(o[:, 3] * span)
+    raw[:, F0 + w], raw[:, F0 + op] = o[:, 4:8].argmax(1), o[:, 8:12].argmax(1)
+    raw[:, HP0 + w], raw[:, HP0 + op] = r(o[:, 12] * spec.hp_max), r(o[:, 13] * spec.hp_max)
+    raw[:, STA0 + w], raw[:, STA0 + op] = r(o[:, 14] * spec.sta_max), r(o[:, 15] * spec.sta_max)
+    raw[:, CD0 + w], raw[:, CD0 + op] = r(o[:, 16] * cd_max), r(o[:, 17] * cd_max)
+    raw[:, STUN0 + w], raw[:, STUN0 + op] = r(o[:, 18] * stun_max), r(o[:, 19] * stun_max)
+    raw[:, T] = r(o[:, 20] * spec.max_steps)
+    return raw

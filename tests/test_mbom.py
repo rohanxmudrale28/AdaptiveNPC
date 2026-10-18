@@ -465,3 +465,52 @@ def test_learner_entry_matches_chosen_setting():
     assert learner_entry("results/learners/main/chosen.csv", "reasoning", "lr3e-4_u64") == (3e-4, 64)
     with pytest.raises(ValueError):
         learner_entry("results/learners/main/chosen.csv", "naive", "lr1e-3_u32")
+
+
+# ---- lookahead opponent (H2) and labeled top_level variant ----
+
+def test_decode_obs_inverts_encode_both_views():
+    from adaptive_npc.npc.mbom.state_obs import decode_obs
+    raw = random_legal_states(2000, 7)
+    for who in (0, 1):
+        assert torch.equal(decode_obs(encode_raw(raw, who, SPEC), who, SPEC), torch.as_tensor(raw).long())
+    assert decode_obs(encode_raw(raw[:1], 1, SPEC)[0], 1, SPEC).shape == (1, 15)  # single obs
+
+
+def test_mbom_top_level_is_a_labeled_variant():
+    assert parse_method("mbom_top_level") == ("none", None)
+
+
+@pytest.mark.skipif(not all(Path(p).exists() for p in CKPTS), reason="needs the trained checkpoints")
+def test_lookahead_finds_the_kill_and_plays_a_round():
+    from adaptive_npc.eval.runner import make_opponent, run_cell
+    from adaptive_npc.players.lookahead import LookaheadPlayer
+    from scripts.eval_mbom import prepare
+    cfg = prepare(load_config("configs/experiments/mbom_smoke.yaml", ["eval.rounds=1", "lookahead.epsilon=0.0"]))
+    players = load_config(cfg["players_config"])
+    opp = make_opponent(cfg, "lookahead", players, ENV, 0, 1)
+    assert isinstance(opp, LookaheadPlayer)
+    # player view of STUNNED: the NPC is stunned with 1 HP right in front of the lookahead player -> attack
+    obs = encode_raw(torch.tensor([STUNNED]), 1, SPEC)[0].numpy()
+    opp.reset()
+    assert opp.act(obs, []) == Action.ATTACK
+    for method in ("mbom_no_imagination", "mbom"):
+        rounds, _ = run_cell(cfg, ENV, players, method, "lookahead", 0)
+        assert len(rounds) == 1 and rounds[0]["steps"] > 0
+    # deterministic given the seeds
+    assert run_cell(cfg, ENV, players, "ppo_predicted", "lookahead", 0)[0] == \
+        run_cell(cfg, ENV, players, "ppo_predicted", "lookahead", 0)[0]
+
+
+def test_run_parts_skips_locked_parts_and_removes_its_lock(tmp_path):
+    from scripts.dev_variants import run_parts
+    cfg = load_config("configs/experiments/mbom_smoke.yaml")
+    design = {"matches_per_cell": 1, "rounds": 1, "env_seed_base": 40000}
+    players = load_config(cfg["players_config"])
+    locked = tmp_path / "rusher" / "scripted" / "seed_0"
+    locked.mkdir(parents=True)
+    (locked / "running.lock").touch()  # another process owns this part
+    run_parts(cfg, ENV, players, tmp_path, "scripted", [], design, [0, 1], ["rusher"])
+    assert not (locked / "matches.csv").exists()
+    done = tmp_path / "rusher" / "scripted" / "seed_1"
+    assert (done / "matches.csv").exists() and not (done / "running.lock").exists()

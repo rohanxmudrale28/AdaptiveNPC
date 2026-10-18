@@ -330,6 +330,13 @@ Conventions:
       | pooled (105 matches) | 0.921 (0.96 → 0.87) | 0.932 | 0.931 | −0.011 ± 0.020 | −0.010 ± 0.019 | 0.81 / −0.01 ± 0.10 |
 
       Imagination doesn't help against these adapting opponents. The learners adapt by online PPO (slowly, M9) rather than by reasoning about the NPC, so a k = 2 best response isn't what they converge to either. No defaults were changed.
+    - **Lookahead opponent and H2 (pre-registered before any run; `adaptive_npc/players/lookahead.py`, `lookahead:` / `h2_test:` in `configs/mbom.yaml`).** This is the test imagination should pass if it works.
+      - The lookahead opponent assumes the NPC is plain `ppo_predicted`. Each step it predicts the NPC's action with the cell's frozen `ppo_predicted` checkpoint, fed by the pretrained, frozen φ0.
+      - It then picks the action that maximizes the eq.-5 imagined return from its own side. It reuses `imagined_returns` with MBOM's settings: k = 2 random continuations, 16 samples, stochastic NPC, max over continuations, bootstrap −γ³V. It runs in the true simulator, reconstructs the raw state exactly from its observation, and plays a uniformly random action with ε = 0.05. No online learning.
+      - In other words, it is a level-1 reasoner against π∘φ0, which is exactly what φ1 is built to model.
+      - **H2:** against the lookahead opponent, MBOM beats `no_imagination` by at least 0.05 (mean win rate over the 5 cells), **and** the 95% t-interval of the paired per-match difference is above 0. Design: NPC seeds 0–4, 7 matches × 30 rounds per cell, fresh state per match, paired seeds (env seed base 50000), with `ppo_predicted` also reported.
+      - The opponent's settings are fixed now and **will not be tuned after the run**, whatever the result.
+      - `scripts/dev_variants.py --test h2_test` prints SUPPORTED / NOT SUPPORTED.
   - [ ] Commit
 - [x] **M9 Learning opponents** (built before M7/M8)
   - [x] `ppo_lite.py`: trains the SB3 `ActorCriticPolicy` loaded from a `.pt` in place (GAE, clip, normalized advantages, `target_kl` early stop, grad clip, `critic_warmup_updates`)
@@ -402,7 +409,34 @@ Conventions:
   - [ ] Opponents: fixed archetypes, switcher, naive, reasoning, held-out, frozen exploiter
     - Frozen exploiter: `models/exploiter/exploiter_seed{0,1,2}.pt` (from `scripts/train_exploiter.py`), loaded as a `PolicyPlayer` with stochastic acting, no online updates. It is a known counter to `ppo_predicted`, so it tests whether an NPC (in particular MBOM) can adapt to an opponent that already exploits it.
     - **Development exploiter: `exploiter_seed1`.** It is used for tuning only (mixer temperature and similar), together with the train archetypes, and is excluded from the final claims. Final exploiter claims use `exploiter_seed0` and `exploiter_seed2`.
-  - [ ] Compute (measured in M8, `results/benchmarks/mbom_m10_projection.csv`): 7 methods × 13 opponents × 5 seeds = 455 matches.
+  - [ ] **Final criteria (pre-registered before any final run; `final:` in `configs/mbom.yaml`, `scripts/final_grid.py`)**
+    - **Final claims use `exploiter_seed0` and `exploiter_seed2` only**, never `exploiter_seed1` (development; the script refuses it).
+    - Design: NPC seeds 0–4, **7 matches per cell** (every opponent), 30 rounds per match, fresh NPC and opponent state per match. Seeds are paired across methods: the same env, opponent and agent seeds for match i of every cell, with a fresh env seed base of 40000.
+    - Opponents: the 6 train archetypes, the 2 held-out ones, `naive_learner`, `reasoning_learner` (online, lr3e-4_u64), `exploiter_seed0`, `exploiter_seed2`.
+    - Methods: `scripted`, `ppo_none`, `ppo_predicted` (its own online setting), `mbom_no_imagination`, `mbom`, `mbom_random_finetune`, `mbom_single_level1`, `mbom_single_level2`, `mbom_uniform_mix`, and `mbom_top_level`. **`mbom_top_level` is reported as a labeled variant, not as the default.** The `mbom` defaults stay as configured (`cond_input: mix`).
+    - **The exploiters were trained against NPC seed 0, so seed 0 and seeds 1–4 are reported separately**, both per exploiter and with the two exploiters pooled. Those four exploiter groups are the claim groups. Every other opponent is reported per opponent (all seeds).
+    - **Primary comparisons** (paired per-match win-rate difference, draws = ½):
+      1. mbom − `ppo_predicted`
+      2. mbom − `no_imagination`
+      3. `no_imagination` − `ppo_predicted` (isolates the φ0 finetune schedule)
+      4. `uniform_mix` − mbom (value of the mixer)
+      5. `single_level1` − mbom (value of the mixer)
+      6. `single_level2` − mbom (value of the mixer)
+    - **Decision rule, per group:**
+      - Paired t-test over matches, Holm–Bonferroni across the 6 primary comparisons within the group.
+      - "better" / "worse" if the Holm-adjusted p < 0.05 (sign of the mean); otherwise "no detectable difference".
+      - Effects are called practically significant only if |mean| ≥ 0.05 (the go/no-go threshold).
+      - The 95% CI is reported with every comparison.
+      - Matches within a cell share an NPC checkpoint, so the tests treat matches as independent and the uncertainty is understated (as in the cross-eval). Per-seed results are kept in the CSVs.
+    - **Secondary:** paired damage taken per round, and each method's win rate in rounds 1–5 vs the last 5.
+    - Saturated cells: win rate ≥ 0.99 for both methods of a comparison is reported as "saturated" in the write-up. The test is still computed.
+  - [ ] Compute of the pre-registered final design: 10 methods × 12 opponents × 5 seeds × 7 matches = 4,200 matches.
+    - Per-match times come from the dev runs on this machine: an i5-14400F with 6 performance and 4 efficiency cores, 10 parallel 1-thread processes, so slower than the single-process benchmark below.
+      - Full-cost MBOM methods (`mbom`, `uniform_mix`, `single_level2`, `top_level`): ≈ 4.7 min per archetype match, ≈ 9.6 per exploiter match, ≈ 8 per learner match. The learner figure is uncertain: 2.3–14 min was measured, depending on load.
+      - That is **≈ 42 process-hours per full-cost method**, `single_level1` ≈ 25, `random_finetune` ≈ 3.5, and the 4 cheap methods ≈ 1 each.
+      - **Total ≈ 200 process-hours, about 20 h wall on 10 processes.**
+    - The 8 archetype opponents account for about half of it, and their win rate is saturated.
+    - Older single-match estimate, superseded:
     - The 5 imagination methods make up 325 of them, but `random_finetune` skips imagination, so only 4 are expensive.
     - Mean match time: `mbom` / `single_level=2` / `uniform_mix` 38 s at 10 threads (77 s at 1), `single_level=1` 21 s (43 s), `random_finetune` 4 s, `no_imagination` and `ppo_predicted` 2 s. `ppo_none` and `scripted` are also seconds per match.
     - **Total ≈ 2.6 h in one process at 10 threads, or ≈ 0.85 h over 6 processes at 1 thread each** (5.1 h at 1 thread in one process).

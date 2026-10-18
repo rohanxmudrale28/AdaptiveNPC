@@ -16,6 +16,7 @@ from adaptive_npc.logging_utils import save_run_metadata
 from adaptive_npc.npc.mbom.agent import build_mbom
 from adaptive_npc.npc.ppo_npc import ConditionFactory, PolicyNPC, PolicyPlayer, model_path
 from adaptive_npc.players.base import RandomPlayer
+from adaptive_npc.players.lookahead import LookaheadPlayer
 from adaptive_npc.players.naive_learner import NaiveLearner
 from adaptive_npc.players.reasoning_learner import ReasoningLearner
 from adaptive_npc.players.scripted import make_player
@@ -97,6 +98,9 @@ def make_opponent(cfg, name, players_cfg, env_cfg, cell_seed, opp_seed):
       naive_learner / reasoning_learner  pretrained learner (checkpoint seed = cell seed mod len(learner_seeds)),
                                      updating online with the chosen setting from learners_chosen (check_learner_drift)."""
     oc = cfg.get("opponents") or {}
+    if name == "lookahead":  # models the cell's ppo_predicted checkpoint (+ pretrained φ0); cfg 'lookahead' block
+        return LookaheadPlayer(cfg["lookahead"], env_cfg, model_path(cfg["train"]["model_dir"], "predicted", cell_seed),
+                               cfg["predictor_checkpoint"], opp_seed)
     if name.startswith("exploiter_seed"):
         return PolicyPlayer(f"{oc['exploiter_dir']}/{name}.pt", deterministic=False, seed=opp_seed)
     if name in ("naive_learner", "reasoning_learner"):

@@ -37,7 +37,7 @@ COND_INPUTS = ("mix", "top_level", "sample_level")
 
 def parse_method(method):
     """'mbom' / 'mbom_<ablation>' / 'mbom_single_level<m>' -> (ablation, level or None)."""
-    if method == "mbom":
+    if method in ("mbom", "mbom_top_level"):  # mbom_top_level: labeled variant, cond_input=top_level (build_mbom)
         return "none", None
     rest = method[len("mbom_"):]
     if rest.startswith("single_level"):
@@ -214,6 +214,7 @@ def build_mbom(cfg, env_cfg, method, seed, base_env):
     model, model_cfg = load_predictor(cfg["predictor_checkpoint"])
     policy = load_policy(model_path(cfg["train"]["model_dir"], "predicted", seed))
     env_model = load_env_model(im["env_model_checkpoint"], bool(im["oracle_model"]), env_cfg)
-    agent = MBOMAgent(cfg["mbom"], im, cfg["mixer"], EnvSpec(env_cfg), model, int(model_cfg["window"]), policy,
+    mb = {**cfg["mbom"], "cond_input": "top_level"} if method == "mbom_top_level" else cfg["mbom"]
+    agent = MBOMAgent(mb, im, cfg["mixer"], EnvSpec(env_cfg), model, int(model_cfg["window"]), policy,
                       env_model, ablation, level, agent_seed(cfg["seed"], seed))
     return MBOMEnv(base_env, agent), policy

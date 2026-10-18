@@ -49,6 +49,12 @@ def run_parts(cfg, env_cfg, players_cfg, root, method, overrides, design, seeds,
             cell = part_dir(root, opp, method, seed)
             if (cell / "matches.csv").exists():
                 continue
+            cell.mkdir(parents=True, exist_ok=True)
+            lock = cell / "running.lock"  # lets identical parallel processes share the parts (after a kill: delete)
+            try:
+                lock.open("x").close()
+            except FileExistsError:
+                continue
             c["gonogo"] = {**cfg["gonogo"], "opponent": opp, "matches_per_cell": design["matches_per_cell"],
                            "rounds": design["rounds"], "env_seed_base": design["env_seed_base"]}
             t0 = time.perf_counter()
@@ -56,10 +62,11 @@ def run_parts(cfg, env_cfg, players_cfg, root, method, overrides, design, seeds,
                 run_part(c, env_cfg, players_cfg, method, seed, Path(root) / opp)
                 (cell / "seconds.txt").write_text(f"{time.perf_counter() - t0:.1f}\n")
             except Exception:  # log and continue: every tried variant is reported, including failures
-                cell.mkdir(parents=True, exist_ok=True)
                 (cell / "error.txt").write_text(traceback.format_exc())
                 errors.append(f"{opp}/seed_{seed}")
                 print(f"  FAILED {method} {opp} seed {seed} (see {cell / 'error.txt'})")
+            finally:
+                lock.unlink(missing_ok=True)
     return errors
 
 
@@ -145,8 +152,8 @@ def aggregate_variants(cfg, players_cfg):
     print(f"wrote {dv['log']}")
 
 
-def aggregate_adaptive(cfg):
-    at = cfg["adaptive_test"]
+def aggregate_adaptive(cfg, test="adaptive_test"):
+    at = cfg[test]
     root = Path(at["out_dir"])
     rows = {m: load_rows(root, m, at["opponents"], at["seeds"])[0] for m in at["methods"]}
     out = []
@@ -163,6 +170,17 @@ def aggregate_adaptive(cfg):
             row.update({f"mbom_minus_{ref}": mean, f"mbom_minus_{ref}_ci95": ci, f"n_paired_{ref}": n,
                         f"mbom_minus_{ref}_damage": dmg, f"mbom_minus_{ref}_damage_ci95": dmg_ci})
         out.append(row)
+    if "min_gain" in at:  # pre-registered hypothesis (H2): gain over cells >= min_gain and paired CI low > 0
+        cell = lambda m: [np.mean([float(r["win_rate"]) for r in rows[m] if int(r["seed"]) == int(s)])  # noqa: E731
+                          for s in at["seeds"]]
+        gain = float(np.mean(cell("mbom")) - np.mean(cell("mbom_no_imagination")))
+        pooled = out[-1]
+        low = pooled["mbom_minus_mbom_no_imagination"] - pooled["mbom_minus_mbom_no_imagination_ci95"]
+        supported = bool(gain >= float(at["min_gain"]) and low > 0)
+        for r in out:
+            r["hypothesis_gain_over_cells"], r["hypothesis_ci_low"], r["hypothesis_supported"] = gain, low, supported
+        print(f"\n{test}: mbom - no_imagination gain over cells {gain:+.3f}, paired CI low {low:+.3f} -> "
+              f"{'SUPPORTED' if supported else 'NOT SUPPORTED'} (needs >= {at['min_gain']} and CI low > 0)")
     write_csv(root / "summary.csv", out)
     print(f"\n{'opponent':18s}" + "".join(f"{m:>22s}" for m in at["methods"])
           + f"{'mbom - no_imag':>18s}{'mbom - ppo_pred':>18s}")
@@ -182,7 +200,8 @@ def main():
     parser.add_argument("--variants", nargs="+", default=None)
     parser.add_argument("--designs", nargs="+", default=None)
     parser.add_argument("--seeds", nargs="+", type=int, default=None)
-    parser.add_argument("--adaptive", action="store_true")
+    parser.add_argument("--adaptive", action="store_true", help="same as --test adaptive_test")
+    parser.add_argument("--test", default=None, help="opponent-test config block: adaptive_test | h2_test")
     parser.add_argument("--methods", nargs="+", default=None, help="--adaptive only")
     parser.add_argument("--opponents", nargs="+", default=None, help="--adaptive only")
     parser.add_argument("--aggregate-only", action="store_true")
@@ -193,13 +212,14 @@ def main():
     cfg = config_from_args(args)
     seed_everything(cfg["seed"])
     env_cfg, players_cfg = load_config(cfg["env_config"]), load_config(cfg["players_config"])
-    if args.adaptive:
-        at = cfg["adaptive_test"]
+    test = args.test or ("adaptive_test" if args.adaptive else None)
+    if test:
+        at = cfg[test]
         if not args.aggregate_only:
             for m in args.methods or at["methods"]:
                 run_parts(cfg, env_cfg, players_cfg, at["out_dir"], m, [], at,
                           args.seeds if args.seeds is not None else at["seeds"], args.opponents or at["opponents"])
-        aggregate_adaptive(cfg)
+        aggregate_adaptive(cfg, test)
         return
     dv = cfg["dev_variants"]
     if not args.aggregate_only:

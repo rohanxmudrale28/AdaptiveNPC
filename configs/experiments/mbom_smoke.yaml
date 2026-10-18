@@ -139,3 +139,42 @@ adaptive_test:
   rounds: 3
   env_seed_base: 30000
   methods: [mbom, mbom_no_imagination, ppo_predicted]
+
+lookahead:                        # lookahead opponent (adaptive_npc/players/lookahead.py); fixed before H2, not tuned after
+  epsilon: 0.05                   # probability of a uniformly random action
+  k: 2                            # same imagination settings as MBOM (it is the opponent φ1 is built to model)
+  opp_samples: 16
+  score_agg: max
+  imagined_npc: stochastic
+  gamma: 0.99
+  simulator: true                 # true = real rules (TrueSimulator); gamma = learned Γ (env_model_checkpoint)
+  env_model_checkpoint: models/env_model.pt
+h2_test:
+  out_dir: results/mbom/smoke/h2_lookahead
+  opponents: [lookahead]
+  seeds: [0]
+  matches_per_cell: 2
+  rounds: 2
+  env_seed_base: 50000
+  methods: [mbom, mbom_no_imagination, ppo_predicted]
+  min_gain: 0.05
+
+final:
+  out_dir: results/m10/smoke
+  seeds: [0, 1]
+  matches_per_cell: 2
+  rounds: 2
+  env_seed_base: 40000
+  opponents: [rusher, exploiter_seed0, lookahead]
+  methods: [scripted, ppo_none, ppo_predicted, mbom_no_imagination, mbom, mbom_uniform_mix, mbom_single_level1,
+            mbom_single_level2, mbom_top_level]
+  exploiters: [exploiter_seed0]
+  exploiter_train_seed: 0
+  primary:
+    - [mbom, ppo_predicted]
+    - [mbom, mbom_no_imagination]
+    - [mbom_no_imagination, ppo_predicted]
+    - [mbom_uniform_mix, mbom]
+    - [mbom_single_level1, mbom]
+    - [mbom_single_level2, mbom]
+  min_gain: 0.05

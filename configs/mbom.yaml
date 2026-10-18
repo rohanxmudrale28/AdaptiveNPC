@@ -149,3 +149,43 @@ adaptive_test:                    # scripts/dev_variants.py --adaptive: does ima
   rounds: 30
   env_seed_base: 30000
   methods: [mbom, mbom_no_imagination, ppo_predicted]
+
+lookahead:                        # lookahead opponent (adaptive_npc/players/lookahead.py); fixed before H2, not tuned after
+  epsilon: 0.05                   # probability of a uniformly random action
+  k: 2                            # same imagination settings as MBOM (it is the opponent φ1 is built to model)
+  opp_samples: 16
+  score_agg: max
+  imagined_npc: stochastic
+  gamma: 0.99
+  simulator: true                 # true = real rules (TrueSimulator); gamma = learned Γ (env_model_checkpoint)
+  env_model_checkpoint: models/env_model.pt
+h2_test:                          # H2 (PLAN.md M8, pre-registered): scripts/dev_variants.py --test h2_test
+  out_dir: results/mbom/h2_lookahead
+  opponents: [lookahead]
+  seeds: [0, 1, 2, 3, 4]
+  matches_per_cell: 7
+  rounds: 30
+  env_seed_base: 50000
+  methods: [mbom, mbom_no_imagination, ppo_predicted]
+  min_gain: 0.05                  # H2 supported: mean(mbom - no_imagination over cells) >= 0.05 and paired CI low > 0
+
+final:                            # M10 final grid (PLAN.md M10, pre-registered): scripts/final_grid.py
+  out_dir: results/m10/final
+  seeds: [0, 1, 2, 3, 4]
+  matches_per_cell: 7
+  rounds: 30
+  env_seed_base: 40000            # fresh seeds (dev runs used 10000 / 20000 / 30000 / 50000)
+  opponents: [rusher, camper, repeater, mixer, flanker, switcher, kiter, counter_puncher,
+              naive_learner, reasoning_learner, exploiter_seed0, exploiter_seed2]   # never exploiter_seed1 (dev)
+  methods: [scripted, ppo_none, ppo_predicted, mbom_no_imagination, mbom, mbom_random_finetune,
+            mbom_single_level1, mbom_single_level2, mbom_uniform_mix, mbom_top_level]
+  exploiters: [exploiter_seed0, exploiter_seed2]
+  exploiter_train_seed: 0         # exploiters were trained vs NPC seed 0: report seed 0 and seeds 1-4 separately
+  primary:                        # [a, b] -> paired a - b
+    - [mbom, ppo_predicted]
+    - [mbom, mbom_no_imagination]
+    - [mbom_no_imagination, ppo_predicted]
+    - [mbom_uniform_mix, mbom]
+    - [mbom_single_level1, mbom]
+    - [mbom_single_level2, mbom]
+  min_gain: 0.05                  # practical-significance threshold (same as go/no-go)
