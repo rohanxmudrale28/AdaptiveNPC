@@ -5,7 +5,7 @@ Reads <final.out_dir>/<opponent>/<method>/seed_<n>/{matches.csv, mbom_rounds.csv
   claim_groups.png / .csv      NPC win rate per method with 95% CI (over matches) in each pre-registered claim group
   comparisons_table.csv        the claim-group and exploratory-group comparisons (from comparisons.csv), labeled
   early_late.png / .csv        win rate in rounds 1-5 vs the last 5, per method (exploiter groups, learners)
-  alpha_traces.png / .csv      MBOM mixer weights α per level over the 30 rounds (mean over matches), α cap marked
+  alpha_traces.png / .csv      MBOM mixer weights alpha per level over the 30 rounds (mean over matches), alpha cap marked
   heldout_table.csv            held-out archetypes (kiter, counter_puncher): win rate, damage, steps per method
 Win rate is NPC-side, draws = 1/2. Colors: dataviz reference palette, categorical slots in fixed order (validated);
 every bar / point is also labeled by method on the axis, and every figure has its CSV as the table view.

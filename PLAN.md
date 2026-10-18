@@ -591,7 +591,7 @@ Conventions:
   - [ ] Commit
 - [x] **M14 Wrap-up**
   - [x] README: setup, play commands (menu, `--panel on`, `--blind`, Tab / P), reproduction commands, results summary, known limitations
-  - [x] Final models in `models/final/` (predictor, env model, `ppo_none` / `ppo_predicted` seeds 0–4; 1.1 MB, whitelisted in `.gitignore`). Exploiter and learner checkpoints are not shipped.
+  - [x] Final models in `models/final/` (predictor, env model, `ppo_none` / `ppo_predicted` seeds 0–4; 1.1 MB, whitelisted in `.gitignore`). Follow-up: exploiter seeds 0–2 and the pretrained learners (seeds 0–2, plus the reasoning learner's NPC model) were added (1.7 MB total), so exploiter and learner cells run from a fresh clone. The four scripts whose `--help` crashed under cp1252 now have ASCII docstrings.
   - [x] Report figures in `report/figures/` with `captions.md`
   - [x] Fresh-clone check: `requirements.txt` covers every import (BOM removed), `pytest` 156 passed, smoke configs run for predictor, NPC, env model, MBOM, final grid, exploiter and learners. `make_plots` fails on the smoke grid (it expects the 6 final methods), but reproduces `results/m11/` byte for byte from the real grid.
   - [x] Commit

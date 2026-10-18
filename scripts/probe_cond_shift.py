@@ -1,8 +1,8 @@
 """Distribution-shift probe for M8: how fragile is the frozen ppo_predicted to its conditioning input?
 
-ppo_predicted was trained with raw (frozen) φ0 probabilities appended to the observation; MBOM feeds it a mixture of
+ppo_predicted was trained with raw (frozen) phi0 probabilities appended to the observation; MBOM feeds it a mixture of
 IOP levels instead. This plays the frozen policy vs the train archetypes with the 8 conditioning dims replaced by
-transformed φ0 outputs (variants in probe.variants) and compares each variant with the raw-φ0 control on the same
+transformed phi0 outputs (variants in probe.variants) and compares each variant with the raw-phi0 control on the same
 env seeds (paired cells). The decision rule (PLAN.md, M8) is checked on probe.decision_variants.
 
 python -m scripts.probe_cond_shift --config configs/mbom.yaml
@@ -36,7 +36,7 @@ def derangement(rng, n=N_ACTIONS):
 
 
 def make_transform(variant, rng, env):
-    """variant dict -> f(p) on φ0 probabilities [8] (float)."""
+    """variant dict -> f(p) on phi0 probabilities [8] (float)."""
     kind = variant["kind"]
     if kind == "phi0":
         return lambda p: p
@@ -63,7 +63,7 @@ def make_transform(variant, rng, env):
 
 
 class TransformedPredictor:
-    """OnlinePredictor proxy for ConditionedEnv: returns transform(φ0) and keeps the raw φ0 output."""
+    """OnlinePredictor proxy for ConditionedEnv: returns transform(phi0) and keeps the raw phi0 output."""
 
     def __init__(self, base, transform=None):
         self.base, self.transform, self.last_raw = base, transform, None

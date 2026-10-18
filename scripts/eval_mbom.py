@@ -3,8 +3,8 @@
 python -m scripts.eval_mbom --config configs/mbom.yaml [--methods mbom mbom_uniform_mix ppo_predicted]
 Writes metrics.csv / summary.csv under eval.out_dir and one <method>/<opponent>/seed_<n>/ folder per cell with the
 config snapshot (incl. the evaluation and imagination NPC-action conventions), git hash, rounds.csv, metrics.csv and,
-for MBOM methods, mbom_rounds.csv (per-round α, per-level IOP accuracy, policy input drift; α_max is capped at
-≈ 0.79 by the mixer temperature, see the alpha_cap column).
+for MBOM methods, mbom_rounds.csv (per-round alpha, per-level IOP accuracy, policy input drift; alpha_max is capped at
+~ 0.79 by the mixer temperature, see the alpha_cap column).
 """
 import argparse
 

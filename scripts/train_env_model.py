@@ -1,4 +1,4 @@
-"""Train the env model Γ and report its error on held-out transitions and held-out opponents.
+"""Train the env model Gamma and report its error on held-out transitions and held-out opponents.
 
 python -m scripts.train_env_model --config configs/env_model.yaml [--recollect] [--eval-only]
 python -m scripts.train_env_model --config configs/env_model.yaml --eval-only --set oracle_model=true   # debug: true simulator, must be 100%

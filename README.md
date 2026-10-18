@@ -28,22 +28,24 @@ If script execution is blocked, run `Set-ExecutionPolicy -Scope Process Bypass` 
 numpy 2.5, gymnasium 1.4, pygame 2.6, scipy 1.18, pytest 9.1. `requirements.txt` is unpinned.
 
 Always run scripts from the repo root as modules (`python -m scripts.<name>`).
-If `--help` on a script crashes with a `UnicodeEncodeError` (Greek letters in the docstring), run
-`$env:PYTHONIOENCODING = "utf-8"` first. Normal runs are not affected.
 
 ### Model checkpoints
 
-Checkpoints (`*.pt`) are gitignored except the final deliverables in `models/final/` (predictor, env model, and
-`ppo_none` / `ppo_predicted` for seeds 0–4, about 1 MB). The configs read from `models/`, so after a fresh clone, install them:
+Checkpoints (`*.pt`) are gitignored except the final deliverables in `models/final/` (predictor, env model,
+`ppo_none` / `ppo_predicted` for seeds 0–4, the exploiters for seeds 0–2, and the pretrained naive / reasoning learners
+for seeds 0–2 with the reasoning learner's NPC model; about 1.7 MB). The configs read from `models/`, so after a fresh clone, install them:
 
 ```powershell
 Copy-Item models\final\predictor.pt, models\final\env_model.pt models\
 New-Item -ItemType Directory -Force models\npc | Out-Null
 Copy-Item models\final\npc\*.pt models\npc\
+New-Item -ItemType Directory -Force models\exploiter, models\learners | Out-Null
+Copy-Item models\final\exploiter\*.pt models\exploiter\
+Copy-Item models\final\learners\*.pt models\learners\
 ```
 
-This is enough to play, run the tests and run the predictor / NPC / MBOM evaluations against the archetypes.
-The learner and exploiter opponents are not shipped. Retrain them (below) to run the exploiter and learner cells.
+This is enough to play, run the tests, and run the evaluations, including the exploiter and learner cells.
+The retraining commands below are only needed to reproduce the checkpoints themselves.
 
 ### Check the install
 
@@ -102,7 +104,7 @@ python -m scripts.eval_npc  --config configs/npc_ppo.yaml
 **3. Env model Γ and MBOM** (`results/env_model/main`, `results/mbom/*`)
 
 ```powershell
-python -m scripts.train_env_model --config configs/env_model.yaml    # collects transitions first (needs models/learners, models/exploiter)
+python -m scripts.train_env_model --config configs/env_model.yaml    # collects transitions first (needs models/learners, models/exploiter, installed above)
 python -m scripts.eval_mbom       --config configs/mbom.yaml
 python -m scripts.probe_cond_shift --config configs/mbom.yaml        # conditioning-shift probe
 python -m scripts.benchmark_mbom  --config configs/mbom.yaml         # speed
@@ -110,7 +112,8 @@ python -m scripts.gonogo_mbom     --config configs/mbom.yaml         # go/no-go 
 python -m scripts.dev_variants    --config configs/mbom.yaml         # dev variants; add --adaptive, or --test h2_test
 ```
 
-**Learners and exploiters** (opponents of the MBOM and final-grid cells)
+**Learners and exploiters** (opponents of the MBOM and final-grid cells; the checkpoints are in `models/final/`, so
+skip the training commands unless you want to regenerate them)
 
 ```powershell
 python -m scripts.train_predictor --config configs/learners_npc_model.yaml
@@ -128,7 +131,7 @@ python -m scripts.final_grid --config configs/mbom.yaml --methods mbom --seeds 0
 python -m scripts.final_grid --config configs/mbom.yaml --aggregate-only             # methods.csv, comparisons.csv
 ```
 
-The full grid is about 49 process-hours (about 5 h on 10 terminals). The exploiters need `models/exploiter/`.
+The full grid is about 49 process-hours (about 5 h on 10 terminals). The exploiter cells need `models/exploiter/` (installed above).
 `final_grid` refuses `exploiter_seed1`, the development exploiter.
 
 **5. Plots**
