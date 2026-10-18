@@ -418,7 +418,7 @@ Conventions:
 
     - Start-policy row: means over the 3 seeds; damage is from greedy acting.
     - `ppo_predicted` is exploitable by offline training: every exploiter seed goes from 0.00 to 0.45–0.96 against it. Seed 1 is much weaker than seeds 0 and 2, hence the wide CIs.
-    - The exploit transfers only partly: against `ppo_none` (not trained on) the exploiters are level on average (0.46–0.53, start 0.26–0.27).
+    - The exploit transfers only partly: against `ppo_none` (not trained on) the exploiters are level on average (0.46–0.53, start 0.26–0.27). **Corrected in M10:** on NPC seeds 1–4 the exploiters beat `ppo_none` about as much as `ppo_predicted` (difference +0.046 ± 0.130). Only the seed-0 `ppo_predicted` checkpoint is specifically exploited.
     - [x] Cross-evaluation vs all NPC modes and seeds: `scripts/eval_exploiters.py` → `results/exploiter/cross_eval.csv` and `cross_eval_summary.csv` (user run; 3 exploiters × 5 NPC checkpoint seeds per mode, 200 rounds per cell, stochastic acting, player-side win rate with draws = ½)
       - Pooled over the 15 cells per mode (mean ± 95% CI; damage per round dealt / taken):
 
@@ -442,7 +442,7 @@ Conventions:
   - [x] Commit
 
 ### Tier 3 — Experiments
-- [ ] **M10 Experiment grid**
+- [x] **M10 Experiment grid**
   - [ ] Methods:
     - baselines: `scripted`, `ppo_none`, `ppo_predicted` (with its own online predictor setting)
     - MBOM and its ablations: `no_imagination`, plus five imagination methods (`mbom`, `random_finetune`, `single_level=1`, `single_level=2`, `uniform_mix`)
@@ -504,15 +504,78 @@ Conventions:
     - Mean match time: `mbom` / `single_level=2` / `uniform_mix` 38 s at 10 threads (77 s at 1), `single_level=1` 21 s (43 s), `random_finetune` 4 s, `no_imagination` and `ppo_predicted` 2 s. `ppo_none` and `scripted` are also seconds per match.
     - **Total ≈ 2.6 h in one process at 10 threads, or ≈ 0.85 h over 6 processes at 1 thread each** (5.1 h at 1 thread in one process).
     - Caveats: the timed opponents were the archetypes. Learner and exploiter matches may run longer (more steps, so more updates) and should be checked in the first M10 cells. The timing is from one machine.
-  - [ ] Seeds: [0, 1, 2, 3, 4]
-  - [ ] Metrics: win rate, return, prediction accuracy/KL, adaptation time after a switch
-  - [ ] Commit configs and results
-- [ ] **M11 Plots + tables**
-  - [ ] Bar charts with 95% CI
-  - [ ] Adaptation curves: win rate and prediction error vs rounds since the switch
-  - [ ] α-weight traces
-  - [ ] Generalization table (held-out archetypes)
-  - [ ] Commit
+  - [x] **Final grid results** (user run under Amendment 1, H2 failed, so no `--h2-passed`; full NPC seeds 0–4, no `--reduced-seeds`; `results/m10/final/{status,methods,comparisons}.csv`). All 6 methods have status ok. Win rate is NPC-side, draws = ½, paired over matches.
+    - **Claim groups.** The pre-registered text says "four exploiter groups" but describes six seed-split groups: each exploiter at NPC seed 0 and at seeds 1–4, plus both exploiters pooled at each. All six are treated as claim groups.
+      - Columns: **Holm** = statistical verdict as pre-registered (Holm-adjusted p < 0.05); **|gain| ≥ 0.05** = the practical-significance check, shown separately. An effect counts as a full claim only if both hold.
+
+      | claim group (n matches) | comparison | paired mean ± 95% CI | p (Holm) | Holm verdict | \|gain\| ≥ 0.05 |
+      |---|---|---|---|---|---|
+      | both exploiters @ seeds 1–4 (56) | mbom − ppo_predicted | −0.009 ± 0.023 | 0.416 | no detectable difference | no |
+      | | mbom − no_imagination | −0.045 ± 0.026 | 0.005 | **worse** | no |
+      | | no_imagination − ppo_predicted | +0.035 ± 0.023 | 0.011 | **better** | no |
+      | | uniform_mix − mbom | −0.055 ± 0.037 | 0.011 | **worse** | **yes** |
+      | both exploiters @ seed 0 (14) | mbom − ppo_predicted | +0.004 ± 0.047 | 1.000 | no detectable difference | no |
+      | | mbom − no_imagination | −0.007 ± 0.046 | 1.000 | no detectable difference | no |
+      | | no_imagination − ppo_predicted | +0.011 ± 0.027 | 1.000 | no detectable difference | no |
+      | | uniform_mix − mbom | +0.060 ± 0.061 | 0.219 | no detectable difference | yes (not significant) |
+      | exploiter_seed0 @ seeds 1–4 (28) | mbom − ppo_predicted | −0.008 ± 0.030 | 0.575 | no detectable difference | no |
+      | | mbom − no_imagination | −0.052 ± 0.037 | 0.028 | **worse** | **yes** |
+      | | no_imagination − ppo_predicted | +0.044 ± 0.031 | 0.028 | **better** | no |
+      | | uniform_mix − mbom | −0.065 ± 0.048 | 0.028 | **worse** | **yes** |
+      | exploiter_seed0 @ seed 0 (7) | all four | −0.036 … +0.005 | ≥ 0.69 | no detectable difference | no |
+      | exploiter_seed2 @ seeds 1–4 (28) | mbom − ppo_predicted | −0.010 ± 0.036 | 0.564 | no detectable difference | no |
+      | | mbom − no_imagination | −0.037 ± 0.040 | 0.283 | no detectable difference | no |
+      | | no_imagination − ppo_predicted | +0.027 ± 0.036 | 0.360 | no detectable difference | no |
+      | | uniform_mix − mbom | −0.045 ± 0.058 | 0.360 | no detectable difference | no |
+      | exploiter_seed2 @ seed 0 (7) | mbom − ppo_predicted / − no_imag / no_imag − ppo_pred / uniform − mbom | +0.043 / +0.014 / +0.029 / +0.114 | ≥ 0.17 | no detectable difference | uniform_mix only (not significant) |
+
+    - **Pre-registered verdicts:**
+      - **MBOM vs `ppo_predicted`: no detectable difference in any claim group** (largest |mean| 0.043, all Holm p ≥ 0.42).
+      - **MBOM vs `no_imagination`: MBOM is worse** on seeds 1–4, pooled (−0.045, statistically but not practically) and for `exploiter_seed0` (−0.052, both). No detectable difference elsewhere.
+      - **`no_imagination` vs `ppo_predicted`:** the φ0 finetune schedule is better on seeds 1–4, pooled (+0.035) and for `exploiter_seed0` (+0.044), statistically but not practically. No difference at seed 0.
+      - **Mixer value:** `uniform_mix` is worse than mbom on seeds 1–4, pooled (−0.055, statistically and practically) and for `exploiter_seed0` (−0.065, both). The Bayesian mixer beats uniform weights; its job here is to down-weight the poor best-response levels.
+      - No method separates at NPC seed 0, where every NPC loses heavily (win rates 0.04–0.44, n = 7–14).
+      - `single_level1`, `single_level2` and `top_level` are dev-set results only (`exploiter_seed1`, see M8): `single_level1` −0.202 ± 0.050 vs mbom, `top_level` −0.003 ± 0.012 vs `no_imagination`. `single_level2` wasn't run.
+    - **Learners: exploratory, not pre-registered claim groups.** They were reported per opponent only. Same four comparisons, Holm within each opponent:
+      - naive: mbom − ppo_predicted −0.052 ± 0.043 (Holm p 0.078; unadjusted 0.020), mbom − no_imagination −0.016 ± 0.049, no_imagination − ppo_predicted −0.036 ± 0.032, uniform_mix − mbom −0.034 ± 0.050. All "no detectable difference".
+      - reasoning: −0.024 ± 0.028, −0.025 ± 0.037, +0.000 ± 0.024, and uniform_mix − mbom −0.074 ± 0.055 ("worse", Holm p 0.039, |gain| ≥ 0.05).
+      - This matches the dev-set H1 result: no benefit from imagination against adapting learners.
+    - **Exploratory comparisons, not pre-registered** (added after the run; unadjusted p; every group in `comparisons.csv`, family `exploratory (not pre-registered)`):
+
+      | group | ppo_predicted − ppo_none | ppo_predicted − scripted |
+      |---|---|---|
+      | both exploiters @ seed 0 (14) | **−0.311 ± 0.072** (p < 0.001) | −0.199 ± 0.107 (p 0.001) |
+      | both exploiters @ seeds 1–4 (56) | +0.046 ± 0.130 (p 0.48) | +0.207 ± 0.085 (p < 0.001) |
+      | exploiter_seed0 @ seed 0 / @ seeds 1–4 | −0.364 ± 0.125 / +0.056 ± 0.173 | −0.088 ± 0.099 / +0.231 ± 0.130 |
+      | exploiter_seed2 @ seed 0 / @ seeds 1–4 | −0.257 ± 0.085 / +0.037 ± 0.204 | −0.310 ± 0.170 / +0.183 ± 0.117 |
+      | naive_learner (35) | +0.325 ± 0.112 | +0.858 ± 0.031 |
+      | reasoning_learner (35) | +0.152 ± 0.105 | +0.913 ± 0.031 |
+
+    - **Correction (to M9: "the exploit transfers only partly … against `ppo_none`").** On the NPC checkpoints the exploiters never saw (seeds 1–4), they beat plain PPO about as much as they beat `ppo_predicted`: `ppo_predicted` − `ppo_none` = +0.046 ± 0.130. Per opponent, NPC win rates are `ppo_none` 0.381 vs `ppo_predicted` 0.353 (`exploiter_seed0`) and 0.587 vs 0.565 (`exploiter_seed2`).
+      - Only at NPC seed 0, the checkpoint the exploiters were trained against, is `ppo_predicted` much worse than `ppo_none` (−0.311 ± 0.072). The checkpoint-specific part of the exploit targets `ppo_predicted` seed 0.
+      - The general part (seeds 1–4) hurts every learned NPC about equally, scripted most.
+    - Held-out archetypes (1 match × 5 seeds; `results/m11/heldout_table.csv`): every learned NPC is near saturation.
+
+      | method | kiter: win rate / damage | counter_puncher: win rate / damage |
+      |---|---|---|
+      | scripted | 0.563 / 2.77 | 0.683 / 2.79 |
+      | ppo_none | 0.993 / 0.33 | 0.903 / 1.23 |
+      | ppo_predicted | 1.000 / 0.27 | 0.973 / 0.76 |
+      | mbom_no_imagination | 1.000 / 0.27 | 0.980 / 0.68 |
+      | mbom | 1.000 / 0.24 | 0.947 / 0.90 |
+      | mbom_uniform_mix | 0.993 / 0.33 | 0.937 / 0.97 |
+
+    - The train archetypes (1 match × 5 seeds) are saturated: win rate ≥ 0.98 for every learned NPC (`methods.csv`).
+  - [x] Seeds: [0, 1, 2, 3, 4]
+  - [x] Metrics: win rate, damage taken, rounds 1–5 vs last 5, MBOM prediction accuracy and input drift. Adaptation time after a switch isn't separately measured: the switcher is saturated (≈ 1.00 for every learned NPC).
+  - [x] Commit configs and results
+- [x] **M11 Plots + tables** (`scripts/make_plots.py --config configs/mbom.yaml` → `results/m11/`, from the saved final grid)
+  - [x] Bar charts with 95% CI per claim group: `claim_groups.png` / `.csv`
+  - [x] Comparisons table (claim and exploratory groups, labeled): `comparisons_table.csv`
+  - [x] Early vs late (rounds 1–5 vs last 5, exploiter groups and learners): `early_late.png` / `.csv`. This replaces the planned "rounds since the switch" curve, because the switcher is saturated.
+  - [x] α-weight traces (`mbom`, exploiters and learners, α cap marked): `alpha_traces.png` / `.csv`
+  - [x] Generalization table (held-out archetypes): `heldout_table.csv`
+  - [x] Commit
 
 ### Tier 4 — Demo + human study
 - [ ] **M12 Demo panel**

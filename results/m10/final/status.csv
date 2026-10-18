@@ -1,0 +1,7 @@
+method,status,cpu_minutes,errors,h2_passed,reduced_seeds
+scripted,ok,1.8,,False,False
+ppo_none,ok,8.9,,False,False
+ppo_predicted,ok,17.3,,False,False
+mbom_no_imagination,ok,19.9,,False,False
+mbom,ok,788.6,,False,False
+mbom_uniform_mix,ok,1261.5,,False,False
