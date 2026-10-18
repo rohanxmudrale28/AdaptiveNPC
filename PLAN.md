@@ -430,7 +430,29 @@ Conventions:
       - Matches within a cell share an NPC checkpoint, so the tests treat matches as independent and the uncertainty is understated (as in the cross-eval). Per-seed results are kept in the CSVs.
     - **Secondary:** paired damage taken per round, and each method's win rate in rounds 1–5 vs the last 5.
     - Saturated cells: win rate ≥ 0.99 for both methods of a comparison is reported as "saturated" in the write-up. The test is still computed.
-  - [ ] Compute of the pre-registered final design: 10 methods × 12 opponents × 5 seeds × 7 matches = 4,200 matches.
+    - **Amendment 1 (2026-10-18, before any final run). Reason: the time limit (the original design is about 200 process-hours), not results. No final-grid match had been played.** Where it differs from the text above, this amendment applies:
+      1. **Matches per cell.** The 8 archetype opponents (6 train + 2 held-out) run at **1 match per cell**: their win rate is saturated and they aren't claim groups. The exploiters (`exploiter_seed0`, `exploiter_seed2`) and the learners stay at **7 matches per cell**.
+      2. **Final methods:** `scripted`, `ppo_none`, `ppo_predicted`, `mbom_no_imagination`, `mbom`, and `mbom_uniform_mix` (the mixer control).
+         - `mbom_single_level1`, `mbom_single_level2` and `mbom_top_level` are **not run on the final grid**. They are reported from the dev-set runs (`results/mbom/dev_variants.csv`: `exploiter_seed1` + train archetypes) and **labeled as dev-set results** wherever they appear.
+         - The primary Holm family becomes the four comparisons that can be computed on the final grid: mbom − `ppo_predicted`, mbom − `no_imagination`, `no_imagination` − `ppo_predicted`, and `uniform_mix` − mbom.
+      3. **Conditional on H2.** If H2 passes (MBOM beats `no_imagination` against the lookahead opponent by at least 0.05, paired CI above 0), `mbom_single_level2` and `mbom_random_finetune` are also run on the final grid (`final_grid.py --h2-passed`, which refuses to run unless the saved H2 summary reports SUPPORTED).
+         - `single_level2` − mbom then joins the primary Holm family.
+         - `random_finetune` − mbom is reported as secondary (unadjusted, outside the family).
+         - If H2 fails, neither is run.
+      4. **Fallback if compute is still too long:** the exploiter claim groups run on NPC seeds 0, 1, 2 instead of 0–4 (`--reduced-seeds`). Seed 0 stays its own group, and "other seeds" becomes seeds 1–2. If used, this goes into Known limitations (fewer NPC checkpoints per claim group, wider CIs). The learners and archetypes keep seeds 0–4.
+  - [ ] **Compute after Amendment 1.** Per method: 40 archetype + 70 learner + 70 exploiter matches = 180 (152 with `--reduced-seeds`). Same per-match rates as below (measured under 10-way load: 4.7 / 8 / 9.6 min per archetype / learner / exploiter match for full-cost MBOM methods, about 0.15 min for the cheap ones, about 0.5 for `random_finetune`).
+
+      | case | process-hours | wall, 10 terminals | wall, 6 terminals |
+      |---|---|---|---|
+      | H2 fails (6 methods: 2 full-cost × 23.7 h + 4 cheap × 0.45 h) | ≈ 49 | ≈ 5 h | ≈ 6.5–8 h |
+      | H2 passes (+ `single_level2` 23.7 h + `random_finetune` 1.5 h) | ≈ 74 | ≈ 7.5 h | ≈ 9.5–12.5 h |
+      | H2 fails, `--reduced-seeds` (full-cost 19.2 h each) | ≈ 40 | ≈ 4 h | ≈ 5–6.5 h |
+      | H2 passes, `--reduced-seeds` | ≈ 60 | ≈ 6 h | ≈ 7.5–10 h |
+
+      - The 6-terminal range runs from "each process 1.3× faster than under 10-way load" (only the performance cores busy) to "no faster".
+      - The learner rate (8 min) is the least certain figure; 2.3–14 min was measured.
+      - H2 itself comes first: ≈ 10 process-hours, ≈ 1.5–2 h on 6 terminals.
+  - [ ] Compute of the original pre-registered design (superseded by Amendment 1): 10 methods × 12 opponents × 5 seeds × 7 matches = 4,200 matches.
     - Per-match times come from the dev runs on this machine: an i5-14400F with 6 performance and 4 efficiency cores, 10 parallel 1-thread processes, so slower than the single-process benchmark below.
       - Full-cost MBOM methods (`mbom`, `uniform_mix`, `single_level2`, `top_level`): ≈ 4.7 min per archetype match, ≈ 9.6 per exploiter match, ≈ 8 per learner match. The learner figure is uncertain: 2.3–14 min was measured, depending on load.
       - That is **≈ 42 process-hours per full-cost method**, `single_level1` ≈ 25, `random_finetune` ≈ 3.5, and the 4 cheap methods ≈ 1 each.

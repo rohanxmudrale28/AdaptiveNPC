@@ -172,20 +172,27 @@ h2_test:                          # H2 (PLAN.md M8, pre-registered): scripts/dev
 final:                            # M10 final grid (PLAN.md M10, pre-registered): scripts/final_grid.py
   out_dir: results/m10/final
   seeds: [0, 1, 2, 3, 4]
-  matches_per_cell: 7
+  matches_per_cell: 7             # exploiters and learners
+  single_match_opponents: [rusher, camper, repeater, mixer, flanker, switcher, kiter, counter_puncher]
+  single_matches_per_cell: 1      # amendment (time limit): saturated archetypes, not claim groups
   rounds: 30
   env_seed_base: 40000            # fresh seeds (dev runs used 10000 / 20000 / 30000 / 50000)
   opponents: [rusher, camper, repeater, mixer, flanker, switcher, kiter, counter_puncher,
               naive_learner, reasoning_learner, exploiter_seed0, exploiter_seed2]   # never exploiter_seed1 (dev)
-  methods: [scripted, ppo_none, ppo_predicted, mbom_no_imagination, mbom, mbom_random_finetune,
-            mbom_single_level1, mbom_single_level2, mbom_uniform_mix, mbom_top_level]
+  methods: [scripted, ppo_none, ppo_predicted, mbom_no_imagination, mbom, mbom_uniform_mix]
+  # single_level1 / single_level2 / top_level: reported from the dev-set runs (results/mbom/dev_variants.csv)
+  methods_if_h2: [mbom_single_level2, mbom_random_finetune]   # only if H2 passed (--h2-passed checks the summary)
+  h2_summary: results/mbom/h2_lookahead/summary.csv
+  reduced_claim_seeds: [0, 1, 2]  # fallback (--reduced-seeds): exploiter claim groups on NPC seeds 0-2 only
   exploiters: [exploiter_seed0, exploiter_seed2]
   exploiter_train_seed: 0         # exploiters were trained vs NPC seed 0: report seed 0 and seeds 1-4 separately
-  primary:                        # [a, b] -> paired a - b
+  primary:                        # [a, b] -> paired a - b; Holm family within each group
     - [mbom, ppo_predicted]
     - [mbom, mbom_no_imagination]
     - [mbom_no_imagination, ppo_predicted]
     - [mbom_uniform_mix, mbom]
-    - [mbom_single_level1, mbom]
+  primary_if_h2:                  # added to the Holm family if H2 passed
     - [mbom_single_level2, mbom]
+  secondary_if_h2:                # reported, unadjusted, outside the Holm family
+    - [mbom_random_finetune, mbom]
   min_gain: 0.05                  # practical-significance threshold (same as go/no-go)

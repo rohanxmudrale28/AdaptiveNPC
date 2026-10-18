@@ -1,8 +1,11 @@
 """M10 final grid (criteria pre-registered in PLAN.md, M10). Final claims: exploiter_seed0 / exploiter_seed2 only.
 
-python -m scripts.final_grid --config configs/mbom.yaml [--methods mbom] [--opponents exploiter_seed0] [--seeds 0 1]
-                             [--threads 1] [--aggregate-only]
-Every (method, opponent, seed) part = matches_per_cell matches of `rounds` rounds, fresh NPC / opponent state per
+python -m scripts.final_grid --config configs/mbom.yaml [--h2-passed] [--reduced-seeds] [--threads 1]
+                             [--methods mbom] [--opponents exploiter_seed0] [--seeds 0 1] [--aggregate-only]
+Amended design (PLAN.md M10, time limit): archetypes at single_matches_per_cell (1), exploiters and learners at
+matches_per_cell (7); methods = `methods`, plus `methods_if_h2` with --h2-passed (refused unless the H2 summary reports
+SUPPORTED); --reduced-seeds puts the exploiter claim groups on reduced_claim_seeds (0-2). Pass the same flags to
+--aggregate-only. Every (method, opponent, seed) part = its matches of `rounds` rounds, fresh NPC / opponent state per
 match, the same env / opponent / agent seeds per match for every method (paired). Parts are resumable and can run in
 parallel processes; failures are logged (error.txt) and reported. Aggregate -> <final.out_dir>/:
   methods.csv      per method x opponent: win rate (draws = 1/2), rounds 1-5 / last 5, damage taken, MBOM trace means
@@ -12,6 +15,7 @@ Groups: every opponent (all seeds); every exploiter at the seed it was trained a
 the exploiters pooled at seed 0 and at seeds 1-4.
 """
 import argparse
+import csv
 from pathlib import Path
 
 import numpy as np
@@ -54,29 +58,66 @@ def groups(fc):
     return out
 
 
-def aggregate(cfg):
+def h2_supported(fc):
+    p = Path(fc.get("h2_summary") or "")
+    if not fc.get("h2_summary") or not p.exists():
+        return None
+    with open(p, encoding="utf-8") as f:
+        return next(csv.DictReader(f)).get("hypothesis_supported") == "True"
+
+
+def resolve_plan(fc, h2_passed, reduced_seeds):
+    """Amended design (PLAN.md M10): methods / comparisons (conditional on H2) and per-opponent matches and seeds."""
+    supported = h2_supported(fc)
+    if h2_passed and supported is not True:
+        raise ValueError(f"--h2-passed, but {fc['h2_summary']} does not report H2 as supported ({supported})")
+    if not h2_passed and supported:
+        print("note: H2 is reported as supported; the pre-registration says to run with --h2-passed")
+    single = set(fc.get("single_match_opponents", []))
+    claim_seeds = fc["reduced_claim_seeds"] if reduced_seeds else fc["seeds"]
+    n_single = int(fc.get("single_matches_per_cell", fc["matches_per_cell"]))
+    return {"methods": list(fc["methods"]) + (list(fc.get("methods_if_h2", [])) if h2_passed else []),
+            "primary": list(fc["primary"]) + (list(fc.get("primary_if_h2", [])) if h2_passed else []),
+            "secondary": list(fc.get("secondary_if_h2", [])) if h2_passed else [],
+            "matches": {o: n_single if o in single else int(fc["matches_per_cell"])
+                        for o in fc["opponents"]},
+            "seeds": {o: list(claim_seeds) if o in fc["exploiters"] else list(fc["seeds"]) for o in fc["opponents"]},
+            "h2_passed": bool(h2_passed), "reduced_seeds": bool(reduced_seeds)}
+
+
+def compare(rows, a, b, sel):
+    ra, rb = [r for r in rows.get(a, []) if sel(r)], [r for r in rows.get(b, []) if sel(r)]
+    d, dd = paired(ra, rb, "win_rate"), paired(ra, rb, "damage_taken")
+    mean, ci = mean_ci(d) if len(d) else (float("nan"), float("nan"))
+    p = float(stats.ttest_1samp(d, 0.0).pvalue) if len(d) > 1 and np.std(d) > 0 else (1.0 if len(d) else float("nan"))
+    dm, dci = mean_ci(dd) if len(dd) else (float("nan"), float("nan"))
+    return {"comparison": f"{a} - {b}", "n_matches": len(d), "paired_mean": mean, "paired_ci95": ci, "p": p,
+            "damage_diff": dm, "damage_diff_ci95": dci}
+
+
+def aggregate(cfg, plan):
     fc = cfg["final"]
     root = Path(fc["out_dir"])
     rows, status = {}, []
-    for m in fc["methods"]:
-        rows[m], missing, failed, sec = load_rows(root, m, fc["opponents"], fc["seeds"])
+    for m in plan["methods"]:
+        rows[m], missing, failed, sec = [], [], [], 0.0
+        for o in fc["opponents"]:
+            r, mi, fa, s = load_rows(root, m, [o], plan["seeds"][o])
+            rows[m] += r
+            missing += mi
+            failed += fa
+            sec += s
         status.append({"method": m, "status": "failed" if failed else ("incomplete" if missing else "ok"),
-                       "cpu_minutes": round(sec / 60, 1), "errors": " | ".join(failed + missing)[:500]})
+                       "cpu_minutes": round(sec / 60, 1), "errors": " | ".join(failed + missing)[:500],
+                       "h2_passed": plan["h2_passed"], "reduced_seeds": plan["reduced_seeds"]})
     write_csv(root / "status.csv", status)
-    methods = [{"method": m, "opponent": o, **summarize([r for r in rows[m] if r["opponent"] == o])}
-               for m in fc["methods"] for o in fc["opponents"]]
+    methods = [{"method": m, "opponent": o, "matches_per_cell": plan["matches"][o],
+                "seeds": " ".join(map(str, plan["seeds"][o])), **summarize([r for r in rows[m] if r["opponent"] == o])}
+               for m in plan["methods"] for o in fc["opponents"]]
     write_csv(root / "methods.csv", methods)
     comps = []
     for gname, sel in groups(fc):
-        fam = []
-        for a, b in fc["primary"]:
-            ra, rb = [r for r in rows[a] if sel(r)], [r for r in rows[b] if sel(r)]
-            d, dd = paired(ra, rb, "win_rate"), paired(ra, rb, "damage_taken")
-            mean, ci = mean_ci(d) if len(d) else (float("nan"), float("nan"))
-            p = float(stats.ttest_1samp(d, 0.0).pvalue) if len(d) > 1 and np.std(d) > 0 else (1.0 if len(d) else float("nan"))
-            dm, dci = mean_ci(dd) if len(dd) else (float("nan"), float("nan"))
-            fam.append({"group": gname, "comparison": f"{a} - {b}", "n_matches": len(d), "paired_mean": mean,
-                        "paired_ci95": ci, "p": p, "damage_diff": dm, "damage_diff_ci95": dci})
+        fam = [{"group": gname, "family": "primary", **compare(rows, a, b, sel)} for a, b in plan["primary"]]
         valid = [i for i, f in enumerate(fam) if not np.isnan(f["p"])]
         adj = holm([fam[i]["p"] for i in valid]) if valid else []
         for i, f in enumerate(fam):
@@ -86,6 +127,11 @@ def aggregate(cfg):
                             "better" if sig and f["paired_mean"] > 0 else
                             "worse" if sig and f["paired_mean"] < 0 else "no detectable difference")
             f["practically_significant"] = bool(abs(f["paired_mean"]) >= float(fc["min_gain"])) if f["n_matches"] else ""
+        for a, b in plan["secondary"]:  # outside the Holm family: unadjusted p, no verdict
+            s = {"group": gname, "family": "secondary", **compare(rows, a, b, sel)}
+            s.update({"p_holm": float("nan"), "verdict": "secondary (unadjusted)", "practically_significant":
+                      bool(abs(s["paired_mean"]) >= float(fc["min_gain"])) if s["n_matches"] else ""})
+            fam.append(s)
         comps += fam
     write_csv(root / "comparisons.csv", comps)
     print(f"{'method':22s}{'status':>12s}{'cpu':>10s}")
@@ -107,6 +153,9 @@ def main():
     parser.add_argument("--seeds", nargs="+", type=int, default=None)
     parser.add_argument("--aggregate-only", action="store_true")
     parser.add_argument("--threads", type=int, default=0)
+    parser.add_argument("--h2-passed", action="store_true",
+                        help="add methods_if_h2 / primary_if_h2 / secondary_if_h2 (checked against h2_summary)")
+    parser.add_argument("--reduced-seeds", action="store_true", help="exploiter claim groups on reduced_claim_seeds")
     args = parser.parse_args()
     if args.threads > 0:
         torch.set_num_threads(args.threads)
@@ -116,11 +165,16 @@ def main():
     fc = cfg["final"]
     if "exploiter_seed1" in fc["opponents"]:
         raise ValueError("exploiter_seed1 is the development exploiter and is excluded from the final grid")
+    plan = resolve_plan(fc, args.h2_passed, args.reduced_seeds)
     if not args.aggregate_only:
-        for m in args.methods or fc["methods"]:
-            run_parts(cfg, env_cfg, players_cfg, fc["out_dir"], m, [], fc,
-                      args.seeds if args.seeds is not None else fc["seeds"], args.opponents or fc["opponents"])
-    aggregate(cfg)
+        # expensive methods first, so identical parallel processes (part locks) finish together
+        order = sorted(args.methods or plan["methods"], key=lambda m: not m.startswith("mbom_") or m == "mbom_no_imagination")
+        for m in order:
+            for opp in args.opponents or fc["opponents"]:
+                design = {**fc, "matches_per_cell": plan["matches"][opp]}
+                seeds = [s for s in plan["seeds"][opp] if args.seeds is None or s in args.seeds]
+                run_parts(cfg, env_cfg, players_cfg, fc["out_dir"], m, [], design, seeds, [opp])
+    aggregate(cfg, plan)
 
 
 if __name__ == "__main__":
