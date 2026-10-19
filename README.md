@@ -69,10 +69,21 @@ ECHO (MBOM). `--opponent` also accepts any archetype (`rusher`, `camper`, `repea
 `switcher`, `kiter`, `counter_puncher`) or `random`. Settings are in `configs/render.yaml` and `configs/ui.yaml`
 (`--set ui.<key>=value` overrides `ui.yaml`).
 
-Controls: WASD / arrows move, **left click** attack, **hold right click** block, **Q** dodge, Enter confirm, Esc pause,
-H legend, F scanlines (mouse clicks only count during active play; menus are keyboard-only). `--keys keyboard`
-restores the old all-keyboard set (**J** attack, **K** block, **L** dodge; bindings in `configs/keys_keyboard.yaml`).
-Also:
+Controls (three schemes, all active at once by default; bindings in `configs/render.yaml`):
+
+| | Move | Attack | Block (hold) | Dash |
+|---|---|---|---|---|
+| **Keyboard** (`--input keyboard`) | WASD / arrows | **J** | **K** | **L** |
+| **Keyboard + Mouse** (`--input kbm`) | WASD / arrows | **left click** | **right click** | **Q** |
+| **Controller** (`--input controller`) | left stick or D-pad | **A** | **B** | **Y** |
+
+`--input all|keyboard|kbm|controller` (default `all`, also on `scripts/human_eval.py`) restricts play to one scheme.
+`--keys mouse|keyboard` still works as a deprecated alias for `--input kbm|keyboard`. Enter confirm, Esc pause (Start on
+the controller), H legend, F scanlines. Mouse clicks only count during active play. The controller uses pygame's SDL
+game-controller layer, so buttons are mapped by position (Xbox A / B / Y = PlayStation Cross / Circle / Triangle; Xbox
+names are shown, `--set controller.labels=playstation` switches them). The stick moves in four directions with a dead
+zone, menus work with the stick / D-pad, A and B, and unplugging the controller during a match pauses it. The
+CONTROLS screen draws each scheme with the keys, mouse or pad highlighted. Also:
 **Tab** toggles the demo panel, **P** saves a screenshot to `results/demo/`, **M** mutes / unmutes all sound,
 **+** / **-** change the volume (default 0.5, set in `configs/ui.yaml`). Sound is synthesized in code; `--mute` starts
 silent and `--no-music` keeps the effects only. With `--blind` (and in `scripts/human_eval.py`) music is off by
@@ -82,7 +93,8 @@ default (`--music` turns it on) and every opponent gets the same effects.
   highlighted), a running prediction accuracy, and, against the MBOM enemy, the mixer weights α over the IOP levels
   with the 0.79 cap marked.
 - **`--blind`:** hides enemy names, the NPC header and the panel, and logs the real NPC version to `results/human/`
-  (one JSON per match, participant ID only). Use it for blind human tests.
+  (one JSON per match, participant ID only, plus the input scheme). Use it for blind human tests, with **one input
+  scheme for every participant** (`python -m scripts.human_eval --participant P01 --input kbm`).
 - The MBOM enemy approximates the evaluated MBOM: its imagination update runs in a worker thread, so it lands a few
   steps late. Set `--set ui.mbom_async=false` for the synchronous version used in evaluation (the enemy then stalls during each update).
 

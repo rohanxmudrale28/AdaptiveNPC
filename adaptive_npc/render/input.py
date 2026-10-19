@@ -75,3 +75,51 @@ class KeyboardInput:
     def clear(self):
         self._latched = None
         self._held_mouse.clear()
+
+
+SCHEMES = ("all", "keyboard", "kbm", "controller")
+_MOVE_KEYS = ("up", "down", "left", "right")
+_COMMIT_RANK = {int(Action.DODGE): 0, int(Action.ATTACK): 1, int(Action.BLOCK): 2}
+
+
+def scheme_keys(cfg, scheme):
+    """Key config (the `keys:` format KeyboardInput reads) for the keyboard-side devices of `scheme`.
+    kbm = render.yaml `keys` as is, keyboard = its movement + `keyboard_keys` attack / block / dodge, all = both
+    (keyboard names first), controller = no gameplay keys (Enter / Esc still work)."""
+    if scheme not in SCHEMES:
+        raise ValueError(f"unknown input scheme {scheme!r}, expected one of {SCHEMES}")
+    base, kb = cfg["keys"], cfg["keyboard_keys"]
+    out = {"next_round": list(base["next_round"]), "quit": list(base["quit"])}
+    for name in _MOVE_KEYS:
+        out[name] = list(base[name]) if scheme != "controller" else []
+    for name in ("attack", "block", "dodge"):
+        names = (list(kb[name]) if scheme in ("all", "keyboard") else []) + \
+                (list(base[name]) if scheme in ("all", "kbm") else [])
+        out[name] = names
+    return out
+
+
+def uses_controller(scheme):
+    return scheme in ("all", "controller")
+
+
+class InputMux:
+    """Several input devices at once. Each tick every device is polled (so every tap is consumed); commit actions
+    (dash, attack, block) beat movement, and among equals the earlier device wins."""
+
+    def __init__(self, *devices):
+        self.devices = list(devices)
+
+    def handle_event(self, event, active=True):
+        result = None
+        for dev in self.devices:
+            result = dev.handle_event(event, active=active) or result
+        return result
+
+    def poll(self):
+        actions = [dev.poll() for dev in self.devices]
+        return min(actions, key=lambda a: _COMMIT_RANK.get(a, 3 if a else 4))
+
+    def clear(self):
+        for dev in self.devices:
+            dev.clear()

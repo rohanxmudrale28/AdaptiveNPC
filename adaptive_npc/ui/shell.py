@@ -13,6 +13,8 @@ IN_MATCH = (COUNTDOWN, PLAY, ROUND_END, PAUSE)
 
 TITLE_ITEMS = ("PLAY", "CONTROLS", "QUIT")
 PAUSE_ITEMS = ("RESUME", "RESTART MATCH", "QUIT TO MENU")
+CONTROLS_ITEMS = ("KEYBOARD", "KEYBOARD + MOUSE", "CONTROLLER")
+NOTICE_CONTROLLER = "CONTROLLER DISCONNECTED"
 
 
 class Shell:
@@ -40,6 +42,9 @@ class Shell:
         self.session = self.clock = None
         self.count_t = 0.0
         self.pause_from = None
+        self.controls_cursor, self.controls_detail = 0, None   # CONTROLS screen: list cursor / open detail view
+        self.notice = None            # message shown on the pause menu (controller unplugged)
+        self.controller_connected, self.controller_name = False, ""   # set by the play loop; the controls page shows them
         self.legend_visible, self.legend_timer = False, None
         self.fx = []                  # events of the latest update(), for view and sound: (kind, player)
         self._was_blocking = [False, False]
@@ -104,6 +109,7 @@ class Shell:
 
     def _enter_countdown(self):
         self.state, self.count_t = COUNTDOWN, 0.0
+        self.notice = None
         self._was_blocking = [False, False]
         self.input_clear()
 
@@ -129,6 +135,7 @@ class Shell:
         self._report(False)
         self.session = None
         self.cursor = 0
+        self.notice = None
         if self.has_menu:
             self.state, self.title_started = TITLE, True
         else:
@@ -172,13 +179,23 @@ class Shell:
                 else:
                     self._start_match()
             elif item == "CONTROLS":
-                self.state = CONTROLS
+                self.state, self.controls_cursor, self.controls_detail = CONTROLS, 0, None
             else:
                 self.state = QUIT
 
     def _on_controls(self, cmd):
-        if cmd in ("confirm", "back"):
-            self.state = TITLE
+        n = len(CONTROLS_ITEMS)
+        if self.controls_detail is None:       # list of schemes
+            if cmd in ("up", "down"):
+                self.controls_cursor = (self.controls_cursor + (1 if cmd == "down" else -1)) % n
+            elif cmd == "confirm":
+                self.controls_detail = self.controls_cursor
+            elif cmd == "back":
+                self.state = TITLE
+        elif cmd in ("left", "right"):         # detail view: flip through the schemes
+            self.controls_detail = self.controls_cursor = (self.controls_detail + (1 if cmd == "right" else -1)) % n
+        elif cmd in ("confirm", "back"):
+            self.controls_detail = None
 
     def _on_select(self, cmd):
         n = len(self.enemies)
@@ -225,8 +242,16 @@ class Shell:
             else:
                 self._leave_match()
 
+    def controller_lost(self):
+        """The controller was unplugged: pause a running match and say why (menus are unaffected)."""
+        if self.state in IN_MATCH:
+            self.notice = NOTICE_CONTROLLER
+            if self.state != PAUSE:
+                self._pause()
+
     def _resume(self):
         self.state = self.pause_from
+        self.notice = None
         if self.state == PLAY:
             self.clock.reset()
             self.input_clear()

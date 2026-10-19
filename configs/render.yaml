@@ -12,9 +12,15 @@ play:
   opponent: scripted_npc   # any archetype name, switcher, or random (--opponent)
   rounds: 5                # rounds per session; 0 = until the window is closed (--rounds)
 
+# Input schemes. All three work at the same time by default; --input all|keyboard|kbm|controller restricts to one
+# (for a human-test session every participant should use the same single scheme).
+input: all
+
 # Key names as understood by pygame.key.key_code(), plus mouse_left / mouse_middle / mouse_right. A tap or click is
 # latched until the next tick; held keys / buttons are re-read every tick (so block can be held). Mouse buttons only
-# count during active play. `--keys keyboard` loads the old set from configs/keys_keyboard.yaml instead.
+# count during active play.
+# `keys` = KEYBOARD + MOUSE scheme (left click attack, right click block, Q dash) and the movement / Enter / Esc keys
+# shared by the keyboard schemes.
 keys:
   up: [w, up]
   down: [s, down]
@@ -25,10 +31,31 @@ keys:
   dodge: [q]
   next_round: [return]
   quit: [escape]
-# Old keyboard-only alternative (kept here for reference; same as configs/keys_keyboard.yaml):
-#  attack: [j, space]
-#  block: [k, left shift]
-#  dodge: [l, left ctrl]
+
+# KEYBOARD scheme: movement as above, these three replace the mouse / Q bindings (J attack, K block, L dash).
+keyboard_keys:
+  attack: [j, space]
+  block: [k, left shift]
+  dodge: [l, left ctrl]
+
+# CONTROLLER scheme (pygame's SDL game-controller layer, so buttons are mapped by physical position: south = A on
+# Xbox pads and Cross on PlayStation pads). Button names: a b x y start back leftshoulder rightshoulder
+# dpad_up dpad_down dpad_left dpad_right. The left stick moves in 4 directions on the dominant axis, the D-pad also moves.
+controller:
+  labels: xbox             # button names shown on screen: xbox | playstation (label_sets below)
+  deadzone: 0.5            # stick magnitude (0..1) needed to start moving
+  hysteresis: 0.1          # once moving, the stick only stops below deadzone - hysteresis
+  axis_margin: 0.15        # to switch between horizontal and vertical the new axis must lead by this much
+  attack: [a]
+  block: [b]               # held across steps while pressed
+  dodge: [y]
+  pause: [start]           # pauses in a match, resumes from pause, confirms on menu screens
+  confirm: [a]             # menus (A is also attack, so it only confirms outside active play)
+  back: [b]
+  round_end_delay: 0.6     # seconds after a round ends before A counts as "next round" (attack mashing)
+  label_sets:
+    xbox:        {south: A, east: B, north: Y, west: X, start: START}
+    playstation: {south: CROSS, east: CIRCLE, north: TRI, west: SQUARE, start: START}
 
 colors:
   background: [24, 26, 33]

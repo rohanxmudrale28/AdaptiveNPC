@@ -13,7 +13,7 @@ from adaptive_npc.config import load_config
 from adaptive_npc.env.actions import Action
 from adaptive_npc.env.core import ArenaGame
 from adaptive_npc.render.clock import TickClock
-from adaptive_npc.render.input import KeyboardInput
+from adaptive_npc.render.input import KeyboardInput, scheme_keys
 from adaptive_npc.render.view import ArenaView
 
 
@@ -130,9 +130,10 @@ def test_losing_focus_drops_held_block(cfgs):
     assert kb.poll(Pressed()) == Action.IDLE
 
 
-def test_keys_keyboard_restores_old_bindings():
-    keys = load_config("configs/keys_keyboard.yaml")["keys"]
+def test_keyboard_scheme_is_the_old_jkl_bindings(cfgs):
+    keys = scheme_keys(cfgs[0], "keyboard")
     assert (keys["attack"], keys["block"], keys["dodge"]) == (["j", "space"], ["k", "left shift"], ["l", "left ctrl"])
+    assert keys["up"] == cfgs[0]["keys"]["up"]
     kb = KeyboardInput(keys)
     kb.handle_event(ev(pygame.MOUSEBUTTONDOWN, button=1, pos=(0, 0)))
     assert kb.poll(Pressed()) == Action.IDLE            # clicks do nothing in keyboard mode
@@ -141,23 +142,42 @@ def test_keys_keyboard_restores_old_bindings():
     assert kb.poll(Pressed()) == Action.DODGE
 
 
-def test_play_keys_flag_selects_keyboard_set():
+def test_play_input_flag_and_deprecated_keys_alias(cfgs, capsys):
     from scripts import play
-    assert play.build_parser().parse_args([]).keys == "mouse"
-    assert play.build_parser().parse_args(["--keys", "keyboard"]).keys == "keyboard"
+    parse = play.build_parser().parse_args
+    assert parse([]).input is None and parse([]).keys is None             # default comes from render.yaml (all)
+    assert play.resolve_scheme(parse([]), cfgs[0]) == "all"
+    for scheme in ("all", "keyboard", "kbm", "controller"):
+        assert play.resolve_scheme(parse(["--input", scheme]), cfgs[0]) == scheme
+    capsys.readouterr()
+    assert play.resolve_scheme(parse(["--keys", "keyboard"]), cfgs[0]) == "keyboard"
+    assert play.resolve_scheme(parse(["--keys", "mouse"]), cfgs[0]) == "kbm"
+    assert "deprecated" in capsys.readouterr().err
+    assert play.resolve_scheme(parse(["--keys", "mouse", "--input", "controller"]), cfgs[0]) == "controller"
+    with pytest.raises(SystemExit):
+        parse(["--input", "gamepad"])
+    with pytest.raises(SystemExit):
+        play.resolve_scheme(parse([]), {**cfgs[0], "input": "bogus"})
 
 
-def test_legend_shows_mouse_controls(cfgs):
+def test_legend_lists_the_active_schemes(cfgs):
     from adaptive_npc.render.retro import RetroView
     ui = load_config("configs/ui.yaml")
-    view = RetroView(ui, cfgs[0], cfgs[1]["arena_size"])
-    assert view.legend_lines()[0] == "MOVE WASD   ATTACK LMB   BLOCK RMB   DODGE Q"
-    kview = RetroView(ui, {**cfgs[0], "keys": load_config("configs/keys_keyboard.yaml")["keys"]}, cfgs[1]["arena_size"])
-    assert kview.legend_lines()[0] == "MOVE WASD   ATTACK J   BLOCK K   DODGE L"
+    arena = cfgs[1]["arena_size"]
+    lines = {s: RetroView(ui, {**cfgs[0], "input": s}, arena).legend_lines()
+             for s in ("keyboard", "kbm", "controller", "all")}
+    assert lines["kbm"][0] == "MOVE WASD   ATTACK LMB   BLOCK RMB   DASH Q"
+    assert lines["keyboard"][0] == "MOVE WASD   ATTACK J   BLOCK K   DASH L"
+    assert lines["controller"][0] == "MOVE STICK   ATTACK A   BLOCK B   DASH Y"
+    assert lines["all"] == ["MOVE WASD/STICK   ATTACK J/LMB/A", "BLOCK K/RMB/B (HOLD)   DASH L/Q/Y",
+                            "H LEGEND   F SCANLINES   ESC/START PAUSE"]
+    assert lines["kbm"][1] == "H LEGEND   F SCANLINES   ESC PAUSE"
+    assert lines["controller"][1].endswith("ESC/START PAUSE")
+    assert RetroView(ui, cfgs[0], arena).scheme == "all"                  # render.yaml default
 
 
 def test_keyboard_held_and_latched(cfgs):
-    kb = KeyboardInput(load_config("configs/keys_keyboard.yaml")["keys"])
+    kb = KeyboardInput(scheme_keys(cfgs[0], "keyboard"))
     assert kb.poll(Pressed()) == Action.IDLE
     assert kb.poll(Pressed({pygame.K_w: True})) == Action.UP
     assert kb.poll(Pressed({pygame.K_k: True})) == Action.BLOCK

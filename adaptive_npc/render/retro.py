@@ -6,14 +6,15 @@ import random
 import pygame
 
 from adaptive_npc.env.actions import DIRS
-from adaptive_npc.render import font
+from adaptive_npc.render import controls_art, font
+from adaptive_npc.render.controller import button_label
+from adaptive_npc.render.input import scheme_keys, uses_controller
 from adaptive_npc.render.sprites import SIZE, SpriteSet
 from adaptive_npc.ui import shell as S
 
 KEY_LABELS = {"left shift": "LSHIFT", "right shift": "RSHIFT", "left ctrl": "LCTRL", "right ctrl": "RCTRL",
               "return": "ENTER", "escape": "ESC", "space": "SPACE", "up": "UP", "down": "DOWN", "left": "LEFT",
               "right": "RIGHT", "mouse_left": "LMB", "mouse_middle": "MMB", "mouse_right": "RMB"}
-LONG_LABELS = {"mouse_left": "LEFT CLICK", "mouse_middle": "MIDDLE CLICK", "mouse_right": "RIGHT CLICK"}
 HUD_H = 46
 BAR_W = 96
 ACTION_LABELS = (("IDL", "UP", "DWN", "LFT", "RGT", "ATK", "BLK", "DGE"))
@@ -25,13 +26,10 @@ def key_label(name):
     return KEY_LABELS.get(name, name.upper())
 
 
-def keys_text(names, sep=" / "):
-    return sep.join(LONG_LABELS.get(k, key_label(k)) for k in names)
-
-
 class RetroView:
     def __init__(self, ui_cfg, render_cfg, arena_size, caption="ADAPTIVE NPC"):
         self.cfg, self.keys_cfg = ui_cfg, render_cfg["keys"]
+        self.render_cfg, self.scheme = render_cfg, render_cfg.get("input", "all")   # which input schemes are active
         self.pal = {k: tuple(v) for k, v in ui_cfg["palette"].items()}
         if len(self.pal) > 16:
             raise ValueError(f"palette has {len(self.pal)} colours, at most 16 allowed")
@@ -301,14 +299,29 @@ class RetroView:
         self.box(0, HUD_H - 2, self.W, 2, self.c["bar_back"])
         self.box(0, HUD_H - 2, int(self.W * frac), 2, self.c["dim"])
 
-    def legend_lines(self):
-        k = self.keys_cfg
+    def scheme_labels(self, scheme):
+        """On-screen names of the controls of one input scheme: {move, attack, block, dodge}."""
+        if scheme == "controller":
+            c = self.render_cfg["controller"]
+            return {"move": "STICK", **{a: button_label(c, c[a][0]) for a in ("attack", "block", "dodge")}}
+        k = scheme_keys(self.render_cfg, scheme)
         move = "".join(k[d][0].upper() for d in ("up", "left", "down", "right"))
         if len(move) != 4:
             move = "/".join(k[d][0].upper() for d in ("up", "left", "down", "right"))
-        return [f"MOVE {move}   ATTACK {key_label(k['attack'][0])}   BLOCK {key_label(k['block'][0])}"
-                f"   DODGE {key_label(k['dodge'][0])}",
-                f"H LEGEND   F SCANLINES   ESC PAUSE"]
+        return {"move": move, **{a: key_label(k[a][0]) for a in ("attack", "block", "dodge")}}
+
+    def legend_lines(self):
+        """Controls legend (H). Every active scheme is listed, e.g. ATTACK J/LMB/A; the last line is the dim footer."""
+        schemes = ("keyboard", "kbm", "controller") if self.scheme == "all" else (self.scheme,)
+        parts = [self.scheme_labels(s) for s in schemes]
+        L = {name: "/".join(dict.fromkeys(p[name] for p in parts)) for name in parts[0]}
+        pause = key_label(self.keys_cfg["quit"][0]) + ("/" + button_label(self.render_cfg["controller"], "start")
+                                                       if uses_controller(self.scheme) else "")
+        if self.scheme == "all":
+            lines = [f"MOVE {L['move']}   ATTACK {L['attack']}", f"BLOCK {L['block']} (HOLD)   DASH {L['dodge']}"]
+        else:
+            lines = [f"MOVE {L['move']}   ATTACK {L['attack']}   BLOCK {L['block']}   DASH {L['dodge']}"]
+        return lines + [f"H LEGEND   F SCANLINES   {pause} PAUSE"]
 
     def draw_strip(self, shell):
         y0 = self.ay + self.n * SIZE + 8
@@ -322,8 +335,10 @@ class RetroView:
                 self.text("PRESS ENTER " + ("FOR RESULTS" if last else "FOR NEXT ROUND"), self.W // 2, y0 + 12,
                           self.c["text"], center=True)
         elif shell.legend_visible:
-            for k, line in enumerate(self.legend_lines()):
-                self.text(line, self.W // 2, y0 + k * 12, self.c["text"] if k == 0 else self.c["dim"], center=True)
+            lines = self.legend_lines()
+            for k, line in enumerate(lines):
+                self.text(line, self.W // 2, y0 + k * 12, self.c["dim"] if k == len(lines) - 1 else self.c["text"],
+                          center=True)
         else:
             self.text("H FOR CONTROLS", self.W // 2, y0 + 12, self.c["dim"], center=True)
 
@@ -383,11 +398,20 @@ class RetroView:
         shade.fill((0, 0, 0, 150))
         self.canvas.blit(shade, (0, 0))
         items = shell.menu_items
-        h = 30 + len(items) * 14
-        x, y = self.W // 2 - 60, self.H // 2 - h // 2
-        self.box(x, y, 120, h, self.c["floor_a"], self.c["text"])
+        pad = uses_controller(self.scheme)
+        hint = [" / ".join(["ENTER"] + (["A"] if pad else [])) + " SELECT",
+                " / ".join([key_label(self.keys_cfg["quit"][0])] + (["B", "START"] if pad else [])) + " RESUME"]
+        top = 24 + (12 if shell.notice else 0)
+        h = top + len(items) * 14 + 6 + len(hint) * 10
+        w = 156
+        x, y = self.W // 2 - w // 2, self.H // 2 - h // 2
+        self.box(x, y, w, h, self.c["floor_a"], self.c["text"])
         self.text("PAUSED", self.W // 2, y + 8, self.c["title"], center=True)
-        self.menu(items, shell.cursor, self.W // 2, y + 24, 14)
+        if shell.notice:
+            self.text(shell.notice, self.W // 2, y + 21, self.c["hit"], center=True)
+        self.menu(items, shell.cursor, self.W // 2, y + top, 14)
+        for k, line in enumerate(hint):
+            self.text(line, self.W // 2, y + top + len(items) * 14 + 4 + k * 10, self.c["dim"], center=True)
 
     def menu(self, items, cursor, cx, y, step, colors=None):
         for k, item in enumerate(items):
@@ -416,26 +440,53 @@ class RetroView:
             self.menu(S.TITLE_ITEMS, shell.cursor, self.W // 2, 134, 16)
         self.text("ENTER SELECT   ARROWS MOVE", self.W // 2, self.H - 16, self.c["dim"], center=True)
 
+    def pad_hint(self, confirm, back):
+        """'ENTER / A OPEN   ESC / B BACK' style hint, with the controller buttons only if a controller is in use."""
+        pad = uses_controller(self.scheme)
+        return (f"{' / '.join([confirm] + (['A'] if pad else []))} OPEN   "
+                f"{' / '.join([back] + (['B'] if pad else []))} BACK")
+
     def draw_controls(self, shell):
-        k = self.keys_cfg
+        if shell.controls_detail is None:
+            self.draw_controls_list(shell)
+        else:
+            self.draw_controls_detail(shell)
+
+    def draw_controls_list(self, shell):
         self.text("CONTROLS", self.W // 2, 12, self.c["title"], 2, center=True, shadow=self.c["title_shadow"])
-        rows = [("MOVE", " ".join(k["up"][:1] + k["left"][:1] + k["down"][:1] + k["right"][:1]).upper()
-                 + "  OR ARROWS", "MOVING SETS WHICH WAY YOU FACE"),
-                ("ATTACK", keys_text(k["attack"], " OR "), "HITS THE TILE YOU FACE"),
-                ("BLOCK", keys_text(k["block"], " OR "), "HOLD: STOPS A FRONT HIT, STUNS ATTACKER"),
-                ("DODGE", keys_text(k["dodge"], " OR "), "DASH TWO TILES, CANNOT BE HIT")]
-        y = 44
-        for name, keys, desc in rows:
-            self.text(name, 16, y, self.c["title"])
-            self.text(keys, 70, y, self.c["text"])
-            self.text(desc, 70, y + 10, self.c["dim"])
-            y += 28
-        self.text("ATTACK BEATS MOVE   BLOCK BEATS ATTACK", self.W // 2, 160, self.c["text"], center=True)
-        self.text("FLANKING BEATS BLOCK   BLOCK AND DODGE COST STAMINA", self.W // 2, 172, self.c["dim"], center=True)
-        self.text(f"{key_label(k['quit'][0])} PAUSE   H LEGEND   F SCANLINES", self.W // 2, 192, self.c["dim"],
-                  center=True)
-        if self.blink(1.5):
-            self.text("PRESS ENTER", self.W // 2, self.H - 22, self.c["text"], center=True)
+        self.menu(S.CONTROLS_ITEMS, shell.controls_cursor, self.W // 2, 46, 18)
+        scheme = ("keyboard", "kbm", "controller")[shell.controls_cursor]
+        L = self.scheme_labels(scheme)
+        self.text(f"MOVE {L['move']}  ATTACK {L['attack']}  BLOCK {L['block']}  DASH {L['dodge']}", self.W // 2, 106,
+                  self.c["text"], center=True)
+        self.text("ATTACK BEATS MOVE   BLOCK BEATS ATTACK", self.W // 2, 132, self.c["text"], center=True)
+        self.text("FLANKING BEATS BLOCK   BLOCK AND DASH COST STAMINA", self.W // 2, 144, self.c["dim"], center=True)
+        controls_art.pad_indicator(self, 24, 170, shell.controller_connected, shell.controller_name)
+        ui = self.cfg["keys"]
+        self.text(self.pad_hint(key_label(ui["confirm"][0]), key_label(ui["back"][0])), self.W // 2, self.H - 26,
+                  self.c["dim"], center=True)
+
+    def draw_controls_detail(self, shell):
+        idx = shell.controls_detail
+        ui = self.cfg["keys"]
+        self.text(S.CONTROLS_ITEMS[idx], self.W // 2, 6, self.c["title"], 2, center=True, shadow=self.c["title_shadow"])
+        self.text(f"CONTROLS {idx + 1}/{len(S.CONTROLS_ITEMS)}", self.W // 2, 24, self.c["dim"], center=True)
+        scheme = ("keyboard", "kbm", "controller")[idx]
+        if scheme == "controller":
+            controls_art.draw_controller(self, self.render_cfg["controller"], shell.controller_connected,
+                                         shell.controller_name)
+        else:
+            L = self.scheme_labels(scheme)
+            caps = {"attack": L["attack"], "block": L["block"], "dash": L["dodge"]}
+            (controls_art.draw_keyboard if scheme == "keyboard" else controls_art.draw_kbm)(self, self.keys_cfg, caps)
+        pygame.draw.line(self.canvas, self.c["wall"], (8, 190), (self.W - 9, 190))
+        k = lambda name: key_label(ui[name][0])
+        self.text(f"{k('confirm')} CONFIRM   {key_label(self.keys_cfg['quit'][0])} PAUSE   {k('help')} LEGEND",
+                  self.W // 2, 196, self.c["dim"], center=True)
+        self.text(f"{k('panel')} PANEL   {k('screenshot')} SCREENSHOT   {k('mute')} MUTE",
+                  self.W // 2, 206, self.c["dim"], center=True)
+        self.text(f"{k('confirm')} / {k('back')} BACK   LEFT / RIGHT OTHER SCHEMES", self.W // 2, 222,
+                  self.c["text"], center=True)
 
     def draw_select(self, shell):
         self.text("CHOOSE OPPONENT", self.W // 2, 10, self.c["title"], 2, center=True, shadow=self.c["title_shadow"])

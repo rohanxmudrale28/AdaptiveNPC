@@ -105,3 +105,7 @@ colors:                    # UI roles -> palette names
   stun: violet
   title: amber
   title_shadow: rust
+  act_move: green          # controls pages: highlight / arrow / label colour per action
+  act_attack: red
+  act_block: sky
+  act_dash: amber

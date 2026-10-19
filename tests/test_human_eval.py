@@ -55,7 +55,29 @@ def test_session_runs_and_logs_with_fake_play(tmp_path):
     saved = json.loads((tmp_path / "P03_session.json").read_text())
     assert saved["finished"] and len(saved["matches"]) == 5
     assert "difficulty_rating" not in saved["matches"][0] and saved["matches"][1]["difficulty_rating"] == 3
-    assert set(saved) == {"participant", "tick_rate", "order", "config", "started_utc", "matches", "finished"}
+    assert set(saved) == {"participant", "tick_rate", "input_scheme", "order", "config", "started_utc", "matches",
+                          "finished"}
+    assert saved["input_scheme"] == "all" and all(c[c.index("--input") + 1] == "all" for c in calls)
+
+
+def test_input_scheme_is_passed_to_every_match_and_logged(tmp_path, capsys):
+    calls = []
+
+    def fake_play(argv):
+        calls.append(argv)
+        return None
+
+    s = HE.main(["--participant", "P05", "--out-dir", str(tmp_path), "--input", "controller", "--no-rating"],
+                play_main=fake_play, input_fn=lambda _: "")
+    assert calls[0][calls[0].index("--input") + 1] == "controller" and "--blind" in calls[0]
+    assert s["input_scheme"] == "controller"
+    assert json.loads((tmp_path / "P05_session.json").read_text())["input_scheme"] == "controller"
+    out = capsys.readouterr().out
+    assert "input scheme controller" in out and "use one scheme" not in out
+    HE.main(["--participant", "P05", "--dry-run"])
+    assert "use one scheme for all participants" in capsys.readouterr().out    # nudge when left on 'all'
+    with pytest.raises(SystemExit):
+        HE.main(["--participant", "P05", "--input", "gamepad"])
 
 
 def test_incomplete_match_stops_session(tmp_path):

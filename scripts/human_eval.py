@@ -5,6 +5,8 @@ python -m scripts.human_eval --participant P01
 python -m scripts.human_eval --participant P02 --no-rating
 python -m scripts.human_eval --participant P01 --dry-run        # print the plan only, no window
 python -m scripts.human_eval --participant P01 --music          # sound effects are always on; music is off unless asked
+python -m scripts.human_eval --participant P01 --input kbm      # restrict to one input scheme: all | keyboard | kbm | controller
+Use the SAME single scheme for every participant (the scheme is logged in the session and match files).
 Logs: results/human/<ID>_session.json (plan, ratings, per-match logs). Only the ID is stored, no personal data.
 """
 import argparse
@@ -15,6 +17,7 @@ import zlib
 from pathlib import Path
 
 from adaptive_npc.config import apply_overrides, load_config
+from adaptive_npc.render.input import SCHEMES
 from adaptive_npc.ui.session import write_json
 
 ID_RE = r"[A-Za-z0-9_-]{1,32}"
@@ -57,7 +60,8 @@ def ask_rating(input_fn=input):
 def run_match(entry, participant, args, play_main):
     """Run one blind match through scripts/play.py. Returns its summary (with 'path'), or None if nothing was played."""
     argv = ["--blind", "--opponent", entry["opponent"], "--label", entry["label"], "--participant", participant,
-            "--rounds", str(entry["rounds"]), "--seed", str(entry["seed"]), "--set", f"ui.human_dir={args.out_dir}/matches"]
+            "--rounds", str(entry["rounds"]), "--seed", str(entry["seed"]), "--set", f"ui.human_dir={args.out_dir}/matches",
+            "--input", args.input]
     if args.tick_rate is not None:
         argv += ["--tick-rate", str(args.tick_rate)]
     argv += ["--music"] if args.music else ["--no-music"]
@@ -75,6 +79,8 @@ def main(argv=None, play_main=None, input_fn=input):
     p.add_argument("--dry-run", action="store_true", help="print the plan and exit")
     p.add_argument("--music", action="store_true", help="play music too (default: off; effects are the same for every opponent)")
     p.add_argument("--mute", action="store_true", help="start with all sound muted")
+    p.add_argument("--input", choices=SCHEMES, default=None,
+                   help="input scheme for every match: all (default), keyboard, kbm, controller. Use one scheme for all participants")
     p.add_argument("--out-dir", default=None)
     p.add_argument("--set", dest="overrides", action="append", default=[], metavar="KEY=VALUE")
     args = p.parse_args(argv)
@@ -83,9 +89,15 @@ def main(argv=None, play_main=None, input_fn=input):
     cfg = apply_overrides(load_config(args.config), args.overrides)
     args.out_dir = (args.out_dir or cfg["out_dir"]).rstrip("/\\")
     plan = build_plan(args.participant, cfg)
-    tick = args.tick_rate if args.tick_rate is not None else load_config("configs/render.yaml")["tick_rate"]
+    render_cfg = load_config("configs/render.yaml")
+    tick = args.tick_rate if args.tick_rate is not None else render_cfg["tick_rate"]
+    args.input = args.input or render_cfg["input"]
     order = npc_order(args.participant, cfg["npcs"])
-    print(f"participant {args.participant}: Opponent A = {order[0]}, Opponent B = {order[1]}, tick rate {tick}/s")
+    print(f"participant {args.participant}: Opponent A = {order[0]}, Opponent B = {order[1]}, tick rate {tick}/s, "
+          f"input scheme {args.input}")
+    if args.input == "all":
+        print("note: every device works with --input all; for the study use one scheme for all participants "
+              "(--input keyboard | kbm | controller)")
     if args.dry_run:
         for i, m in enumerate(plan):
             print(f"  {i}: {m['phase']:8s} Opponent {m['label']:8s} {m['opponent']:14s} {m['rounds']} rounds seed {m['seed']}")
@@ -94,7 +106,8 @@ def main(argv=None, play_main=None, input_fn=input):
         from scripts import play
         play_main = play.main
     out = Path(args.out_dir) / f"{args.participant}_session.json"
-    session = {"participant": args.participant, "tick_rate": tick, "order": {"A": order[0], "B": order[1]},
+    session = {"participant": args.participant, "tick_rate": tick, "input_scheme": args.input,
+               "order": {"A": order[0], "B": order[1]},
                "config": cfg, "started_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "matches": []}
     ask = cfg["ask_rating"] and not args.no_rating
     for i, entry in enumerate(plan):

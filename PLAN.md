@@ -74,7 +74,9 @@ AdaptiveNPC/
     render/
       view.py                   # Pygame drawing of arena + HUD (reads core state only)
       demo_panel.py             # predicted next-action bars, belief weights α / player-type
-      input.py                  # keyboard → Action
+      input.py                  # keyboard + mouse → Action, input schemes (keyboard / kbm / controller / all), InputMux
+      controller.py             # game controller → Action (stick with dead zone + hysteresis, D-pad, buttons), hot-plug hub
+      controls_art.py           # pixel-art keyboard / mouse / gamepad drawings for the CONTROLS screen
       clock.py                  # fixed-timestep TickClock: game tick rate independent of render fps
   scripts/                      # thin CLI entry points: --config, --seed, --out
     benchmark_env.py  balance_matrix.py  collect_data.py  train_predictor.py  train_npc.py
@@ -589,6 +591,7 @@ Conventions:
 - [ ] **M13 Human eval** (code done; data collection and the analysis run are the user's)
   - [x] `human_eval.py`: repeated matches per participant, logging to `results/human/`, with the tick rate taken from `render.yaml`
   - [x] Analysis script (`analyze_human.py`)
+  - [x] Controller support and the three input schemes (`--input`), redesigned CONTROLS screen, scheme logged in the human-eval logs. Hardware check (a real pad, hot-plug) is the user's.
   - [x] Commit (code only)
 - [x] **M14 Wrap-up**
   - [x] README: setup, play commands (menu, `--panel on`, `--blind`, Tab / P), reproduction commands, results summary, known limitations
@@ -661,7 +664,8 @@ Conventions:
 20. **Human-play tick rate:**
     - Default tick rate is 4 steps/s (lowered from 8 after the first play-test found the game too difficult at 8). The tick rate only affects human play; training and evaluation are unaffected. Rendering runs at 60 fps.
     - Set in `render.yaml`, overridable with `--tick-rate`.
-    - Keys: WASD / arrows move, left click attack, hold right click block, Q dodge (`--keys keyboard` = old J/K/L), Enter confirm, Esc pause, H legend, F scanlines, **Tab** demo panel, **P** screenshot to `results/demo/`.
+    - Controls: three schemes active at once (`--input all|keyboard|kbm|controller` restricts to one; `--keys` is a deprecated alias): keyboard = WASD / arrows + J attack, K block (held), L dash; keyboard + mouse = WASD / arrows + left click attack, right click block (held), Q dash; controller = left stick or D-pad + A attack, B block (held), Y dash, Start pause. Enter confirm, Esc pause, H legend, F scanlines, **Tab** demo panel, **P** screenshot to `results/demo/`, **M** mute. Bindings are in `render.yaml`.
+    - Human test: use a single scheme for all participants (`human_eval.py --input <scheme>`); the scheme is logged in the session and match files.
 21. **Learner drift:**
     - KL threshold `kl_min` = 0.05 nats, measured on 512 probe states between match start and match end.
     - Starting online LR: 3e-4. Tune upward until the threshold is met.
