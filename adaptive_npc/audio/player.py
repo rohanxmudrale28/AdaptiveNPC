@@ -13,8 +13,8 @@ from adaptive_npc.ui import shell as S
 
 EVENT_SOUND = (("attack", "attack"), ("block", "block"), ("dodge", "dodge"), ("parry", "parry"),
                ("hit", "hit"), ("ko", "ko"))             # fixed firing order within one frame
-MENU_STATES = (S.TITLE, S.CONTROLS, S.SELECT, S.PAUSE, S.RESULTS)
-MUSIC_FOR_STATE = {S.TITLE: "menu", S.CONTROLS: "menu", S.SELECT: "menu", S.COUNTDOWN: "fight", S.PLAY: "fight",
+MENU_STATES = (S.TITLE, S.CONTROLS, S.BIND, S.SELECT, S.PAUSE, S.RESULTS)
+MUSIC_FOR_STATE = {S.TITLE: "menu", S.CONTROLS: "menu", S.BIND: "menu", S.SELECT: "menu", S.COUNTDOWN: "fight", S.PLAY: "fight",
                    S.ROUND_END: "fight", S.PAUSE: "fight"}      # results screen: jingle only
 MOVE_CMDS = ("up", "down", "left", "right", "back")
 

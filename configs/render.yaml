@@ -53,6 +53,13 @@ controller:
   confirm: [a]             # menus (A is also attack, so it only confirms outside active play)
   back: [b]
   round_end_delay: 0.6     # seconds after a round ends before A counts as "next round" (attack mashing)
+  # Fallback for pads SDL has no game-controller mapping for (found through pygame.joystick). Their buttons and axes
+  # are raw indices, so `default` is a guess (a common layout; any hat is the D-pad). Rebind on CONTROLS > CONTROLLER
+  # (Enter while a generic pad is connected): bindings are saved per pad name in `local_file`, which is not in git.
+  joystick:
+    local_file: configs/local_controller.yaml
+    bind_threshold: 0.6    # stick deflection that counts as "pushed" while binding
+    default: {attack: 0, block: 1, dodge: 3, pause: 7, axis_x: 0, axis_y: 1, invert_x: false, invert_y: false}
   label_sets:
     xbox:        {south: A, east: B, north: Y, west: X, start: START}
     playstation: {south: CROSS, east: CIRCLE, north: TRI, west: SQUARE, start: START}

@@ -93,10 +93,13 @@ def disc(v, cx, cy, r, fill, edge=None):
     pygame.draw.circle(v.canvas, fill, (cx, cy), r)
 
 
-def pad_indicator(v, x, y, connected, name=""):
-    """Small connected / not-found light with the controller's name (x, y = top-left of the text row)."""
+def pad_indicator(v, x, y, connected, name="", generic=False):
+    """Small connected / not-found light with the controller's name (x, y = top-left of the text row).
+    `generic` marks a pad without an SDL mapping (it works through the joystick fallback and can be rebound)."""
     disc(v, x + 3, y + 3, 3, v.c["act_move"] if connected else v.c["dim"], v.c["text"] if connected else None)
     txt = ("CONTROLLER CONNECTED: " + name[:24].upper()).rstrip(": ") if connected else "NO CONTROLLER FOUND"
+    if connected and generic:
+        txt = ("CONNECTED: " + name[:20].upper() + " (GENERIC)")
     v.text(txt, x + 12, y, v.c["text"] if connected else v.c["dim"])
 
 
@@ -154,7 +157,7 @@ def draw_kbm(v, move_keys, caps):
     label(v, "dash", LABEL_X, 158, dash)
 
 
-def draw_controller(v, pad_cfg, connected, name):
+def draw_controller(v, pad_cfg, connected, name, generic=False, note=None):
     cx, cy = 96, 116
     move, att, blk, dash = (action_color(v, a) for a in ("move", "attack", "block", "dash"))
     body, edge, dim, ink = v.c["wall"], v.c["dim"], v.c["dim"], v.pal["ink"]
@@ -204,4 +207,7 @@ def draw_controller(v, pad_cfg, connected, name):
     label(v, "block", LABEL_X, row_block, blk, sub=sub("b", "block"))
     label(v, "attack", LABEL_X, row_attack, att, sub=sub("a", "attack"))
     v.text(f"{button_label(pad_cfg, 'start')} = PAUSE", cx, cy + 46, v.c["dim"], center=True)
-    pad_indicator(v, 24, 176, connected, name)
+    if note:
+        v.text(note, v.W // 2, 177, v.c["act_move"], center=True)
+    else:
+        pad_indicator(v, 24, 176, connected, name, generic)

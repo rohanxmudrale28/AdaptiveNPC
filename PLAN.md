@@ -75,7 +75,7 @@ AdaptiveNPC/
       view.py                   # Pygame drawing of arena + HUD (reads core state only)
       demo_panel.py             # predicted next-action bars, belief weights α / player-type
       input.py                  # keyboard + mouse → Action, input schemes (keyboard / kbm / controller / all), InputMux
-      controller.py             # game controller → Action (stick with dead zone + hysteresis, D-pad, buttons), hot-plug hub
+      controller.py             # game controller → Action (stick with dead zone + hysteresis, D-pad, buttons), hot-plug hub, joystick fallback + binding flow
       controls_art.py           # pixel-art keyboard / mouse / gamepad drawings for the CONTROLS screen
       clock.py                  # fixed-timestep TickClock: game tick rate independent of render fps
   scripts/                      # thin CLI entry points: --config, --seed, --out
@@ -592,6 +592,7 @@ Conventions:
   - [x] `human_eval.py`: repeated matches per participant, logging to `results/human/`, with the tick rate taken from `render.yaml`
   - [x] Analysis script (`analyze_human.py`)
   - [x] Controller support and the three input schemes (`--input`), redesigned CONTROLS screen, scheme logged in the human-eval logs. Hardware check (a real pad, hot-plug) is the user's.
+  - [x] Generic-pad fallback: pads without an SDL game-controller mapping work through `pygame.joystick` (raw events translated into controller events, so the dead zone / hysteresis and menus are shared), with a one-time binding screen (CONTROLS > CONTROLLER > Enter) saved per pad name in the git-ignored `configs/local_controller.yaml`.
   - [x] Commit (code only)
 - [x] **M14 Wrap-up**
   - [x] README: setup, play commands (menu, `--panel on`, `--blind`, Tab / P), reproduction commands, results summary, known limitations

@@ -7,7 +7,7 @@ import pygame
 
 from adaptive_npc.env.actions import DIRS
 from adaptive_npc.render import controls_art, font
-from adaptive_npc.render.controller import button_label
+from adaptive_npc.render.controller import BIND_NAMES, BIND_STEPS, button_label
 from adaptive_npc.render.input import scheme_keys, uses_controller
 from adaptive_npc.render.sprites import SIZE, SpriteSet
 from adaptive_npc.ui import shell as S
@@ -100,7 +100,7 @@ class RetroView:
         if in_match:
             self.sync(shell.session.game)
         self.canvas.fill(self.pal["ink"])
-        {S.TITLE: self.draw_title, S.CONTROLS: self.draw_controls, S.SELECT: self.draw_select,
+        {S.TITLE: self.draw_title, S.CONTROLS: self.draw_controls, S.BIND: self.draw_bind, S.SELECT: self.draw_select,
          S.COUNTDOWN: self.draw_match, S.PLAY: self.draw_match, S.ROUND_END: self.draw_match,
          S.PAUSE: self.draw_match, S.RESULTS: self.draw_results, S.QUIT: lambda s: None}[shell.state](shell)
         if shell.state == S.PAUSE:
@@ -461,7 +461,8 @@ class RetroView:
                   self.c["text"], center=True)
         self.text("ATTACK BEATS MOVE   BLOCK BEATS ATTACK", self.W // 2, 132, self.c["text"], center=True)
         self.text("FLANKING BEATS BLOCK   BLOCK AND DASH COST STAMINA", self.W // 2, 144, self.c["dim"], center=True)
-        controls_art.pad_indicator(self, 24, 170, shell.controller_connected, shell.controller_name)
+        controls_art.pad_indicator(self, 24, 170, shell.controller_connected, shell.controller_name,
+                                   shell.controller_generic)
         ui = self.cfg["keys"]
         self.text(self.pad_hint(key_label(ui["confirm"][0]), key_label(ui["back"][0])), self.W // 2, self.H - 26,
                   self.c["dim"], center=True)
@@ -474,7 +475,7 @@ class RetroView:
         scheme = ("keyboard", "kbm", "controller")[idx]
         if scheme == "controller":
             controls_art.draw_controller(self, self.render_cfg["controller"], shell.controller_connected,
-                                         shell.controller_name)
+                                         shell.controller_name, shell.controller_generic, shell.controls_note)
         else:
             L = self.scheme_labels(scheme)
             caps = {"attack": L["attack"], "block": L["block"], "dash": L["dodge"]}
@@ -485,8 +486,41 @@ class RetroView:
                   self.W // 2, 196, self.c["dim"], center=True)
         self.text(f"{k('panel')} PANEL   {k('screenshot')} SCREENSHOT   {k('mute')} MUTE",
                   self.W // 2, 206, self.c["dim"], center=True)
-        self.text(f"{k('confirm')} / {k('back')} BACK   LEFT / RIGHT OTHER SCHEMES", self.W // 2, 222,
-                  self.c["text"], center=True)
+        if idx == 2 and shell.controller_generic and shell.bind_factory:
+            hint = f"{k('confirm')} BIND THIS PAD   {k('back')} BACK   LEFT / RIGHT SWITCH"
+        else:
+            hint = f"{k('confirm')} / {k('back')} BACK   LEFT / RIGHT OTHER SCHEMES"
+        self.text(hint, self.W // 2, 222, self.c["text"], center=True)
+
+    def draw_bind(self, shell):
+        """One-time binding screen for a generic pad: a row per control with its current binding, the prompt below."""
+        flow = shell.binder
+        ui = self.cfg["keys"]
+        self.text("BIND CONTROLLER", self.W // 2, 8, self.c["title"], 2, center=True, shadow=self.c["title_shadow"])
+        self.text(flow.name[:40].upper(), self.W // 2, 28, self.c["dim"], center=True)
+        role_color = {"attack": "act_attack", "block": "act_block", "dodge": "act_dash", "axis_x": "act_move",
+                      "axis_y": "act_move", "pause": "text"}
+        for k, step in enumerate(BIND_STEPS):
+            y = 48 + k * 15
+            now = step == flow.current
+            col = self.c[role_color[step]]
+            if now:
+                self.box(40, y - 3, 240, 14, self.c["floor_a"], self.c["wall"])
+                if self.blink(3):
+                    self.text(">", 46, y, self.c["title"])
+            self.text(BIND_NAMES[step], 60, y, col if now or step in flow.captured else self.c["dim"])
+            self.text(flow.describe(step), 150, y, self.c["text"] if step in flow.captured else self.c["dim"])
+            if step in flow.captured:
+                self.text("SET", 262, y, self.c["act_move"])
+        if flow.done:
+            self.text("ALL SET", self.W // 2, 150, self.c["act_move"], 2, center=True)
+        else:
+            self.text(flow.prompt, self.W // 2, 148, self.c[role_color[flow.current]], center=True)
+            self.text(f"STEP {flow.step + 1} OF {len(BIND_STEPS)}", self.W // 2, 160, self.c["dim"], center=True)
+        if flow.note:
+            self.text(flow.note, self.W // 2, 176, self.c["hit"] if "USED" in flow.note else self.c["dim"], center=True)
+        self.text(f"{key_label(ui['confirm'][0])} KEEP CURRENT   {key_label(ui['back'][0])} CANCEL",
+                  self.W // 2, self.H - 22, self.c["dim"], center=True)
 
     def draw_select(self, shell):
         self.text("CHOOSE OPPONENT", self.W // 2, 10, self.c["title"], 2, center=True, shadow=self.c["title_shadow"])

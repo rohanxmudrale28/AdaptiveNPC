@@ -83,7 +83,14 @@ the controller), H legend, F scanlines. Mouse clicks only count during active pl
 game-controller layer, so buttons are mapped by position (Xbox A / B / Y = PlayStation Cross / Circle / Triangle; Xbox
 names are shown, `--set controller.labels=playstation` switches them). The stick moves in four directions with a dead
 zone, menus work with the stick / D-pad, A and B, and unplugging the controller during a match pauses it. The
-CONTROLS screen draws each scheme with the keys, mouse or pad highlighted. Also:
+CONTROLS screen draws each scheme with the keys, mouse or pad highlighted.
+
+Generic pads: a pad SDL has no game-controller mapping for is still found through `pygame.joystick` (the CONTROLS
+page says `(GENERIC)`) and works with a guessed layout (buttons 0 / 1 / 3 = attack / block / dash, 7 = Start, axes 0 / 1
+= left stick, any hat = D-pad; `controller.joystick.default` in `render.yaml`). To fit your pad, open CONTROLS >
+CONTROLLER and press Enter: press the buttons for ATTACK, BLOCK, DASH, push the stick right and down, press START
+(Enter keeps a step's current binding, Esc cancels). Bindings are saved per pad name in `configs/local_controller.yaml`,
+which is git-ignored. The stick dead zone and hysteresis apply to generic pads too. Also:
 **Tab** toggles the demo panel, **P** saves a screenshot to `results/demo/`, **M** mutes / unmutes all sound,
 **+** / **-** change the volume (default 0.5, set in `configs/ui.yaml`). Sound is synthesized in code; `--mute` starts
 silent and `--no-music` keeps the effects only. With `--blind` (and in `scripts/human_eval.py`) music is off by

@@ -8,6 +8,8 @@ ppo_predicted, mbom), or any players.yaml archetype / random / switcher. Tick ra
 Input schemes (bindings in configs/render.yaml), all active at once unless --input restricts them:
   keyboard: WASD/arrows move, J attack, K block (held), L dash     kbm: WASD/arrows move, left click attack, hold right
   click block, Q dash     controller: left stick or D-pad move, A attack, B block (held), Y dash, Start pause.
+Pads SDL has no mapping for still work through pygame.joystick (a guessed layout); rebind them once on CONTROLS >
+CONTROLLER (Enter), saved in configs/local_controller.yaml (not in git).
 --input all|keyboard|kbm|controller picks one (--keys mouse|keyboard is a deprecated alias for kbm|keyboard).
 Enter confirm, Esc pause, H legend, F scanlines, Tab demo panel, P screenshot, M mute, +/- volume. Sound is synthesized (no files):
 --mute starts silent, --no-music keeps effects only, --music forces music on (it is off by default with --blind).
@@ -159,13 +161,13 @@ def main(argv=None):
     use_music = not args.no_music and (args.music or (bool(ui["audio"]["music"]) and not args.blind))
     sound = SoundManager(ui["audio"], mute=args.mute, music=use_music)   # warns once and stays silent if no audio device
     use_pad = uses_controller(scheme)
-    hub = ControllerHub() if use_pad else None
+    hub = ControllerHub(cfg["controller"]) if use_pad else None
     pad = ControllerInput(cfg["controller"]) if use_pad else None
     keys = InputMux(KeyboardInput(scheme_keys(cfg, scheme)), *([pad] if pad else []))
     shell = S.Shell(ui, enemies, tick_rate, make_session, has_menu=menu, select_enabled=menu and not args.blind,
                     enemy_index=enemy_idx, blind=args.blind, label=label, on_match_end=on_match_end,
                     input_clear=keys.clear, max_catchup=cfg["max_catchup_steps"],
-                    panel=args.panel == "on")
+                    panel=args.panel == "on", bind_factory=hub.start_binding if hub else None)
     if not menu:
         shell.begin()
         if shell.state == S.QUIT:  # checkpoint missing: say so clearly, no window
@@ -177,22 +179,35 @@ def main(argv=None):
     dt = 0.0
     while shell.state != S.QUIT:
         ui_keys.observe(shell.state)
-        for ev in pygame.event.get():
-            if hub is not None and hub.handle_event(ev) == "disconnected":
-                pad.release_all()
-                shell.controller_lost()
-            cmd = ui_keys.command(ev)
-            if cmd == "screenshot":
-                print(f"screenshot: {view.save_screenshot(ui['results_dir'])}")
-            elif cmd in ("mute", "volume_up", "volume_down"):
-                sound.control(cmd)
-            elif cmd:
-                sound.command(cmd, shell.state)
-                shell.handle(cmd)
-                ui_keys.observe(shell.state)
-            keys.handle_event(ev, active=shell.state == S.PLAY)
+        for raw in pygame.event.get():
+            if hub is not None:
+                if hub.handle_event(raw) == "disconnected":
+                    pad.release_all()
+                    shell.controller_lost()
+                if shell.state == S.BIND and hub.is_generic_event(raw):
+                    shell.binder.feed(raw)       # the binding screen reads the generic pad's raw buttons and axes
+                    continue
+            for ev in (hub.translate(raw) if hub is not None else [raw]):   # generic pads -> controller events
+                cmd = ui_keys.command(ev)
+                if cmd == "screenshot":
+                    print(f"screenshot: {view.save_screenshot(ui['results_dir'])}")
+                elif cmd in ("mute", "volume_up", "volume_down"):
+                    sound.control(cmd)
+                elif cmd:
+                    sound.command(cmd, shell.state)
+                    shell.handle(cmd)
+                    ui_keys.observe(shell.state)
+                keys.handle_event(ev, active=shell.state == S.PLAY)
         if hub is not None:
             shell.controller_connected, shell.controller_name = hub.connected, hub.name
+            shell.controller_generic = hub.generic
+            if shell.state == S.BIND and shell.binder.done:
+                try:
+                    hub.save_map(shell.binder.name, shell.binder.map)
+                    shell.end_binding("PAD BINDINGS SAVED")
+                except OSError as e:
+                    print(f"warning: could not save {cfg['controller']['joystick']['local_file']}: {e}", file=sys.stderr)
+                    shell.end_binding("COULD NOT SAVE BINDINGS")
         shell.update(dt, keys.poll)
         sound.observe(shell)
         view.draw(shell, dt)

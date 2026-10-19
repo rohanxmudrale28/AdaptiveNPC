@@ -12,7 +12,7 @@ import pytest
 
 from adaptive_npc.config import load_config
 from adaptive_npc.env.actions import Action
-from adaptive_npc.render.controller import ControllerHub, ControllerInput, StickDirection, button_label
+from adaptive_npc.render.controller import ControllerHub, ControllerInput, StickDirection, _Pad, button_label
 from adaptive_npc.render.input import InputMux, KeyboardInput, scheme_keys, uses_controller
 from adaptive_npc.render.retro import RetroView
 from adaptive_npc.render.ui_input import UIKeys
@@ -381,12 +381,12 @@ def test_disconnect_outside_a_match_does_nothing_and_is_idempotent(cfgs):
 
 def test_hub_reports_connect_and_disconnect_events():
     hub = ControllerHub.__new__(ControllerHub)
-    hub._sdl, hub.pads = object(), {7: (object(), "PAD")}
-    assert hub.connected and hub.name == "PAD"
+    hub._sdl, hub.joy, hub.cfg, hub.pads = object(), None, {}, {7: _Pad("controller", "PAD", None)}
+    assert hub.connected and hub.name == "PAD" and not hub.generic
     assert hub.handle_event(ev(pygame.CONTROLLERDEVICEREMOVED, instance_id=99)) is None
     assert hub.handle_event(ev(pygame.CONTROLLERDEVICEREMOVED, instance_id=7)) == "disconnected"
     assert not hub.connected and hub.name == ""
-    hub._open = lambda index: hub.pads.setdefault(3, (object(), "NEW")) and True
+    hub._open = lambda index: hub.pads.setdefault(3, _Pad("controller", "NEW", None)) and True
     assert hub.handle_event(ev(pygame.CONTROLLERDEVICEADDED, device_index=0)) == "connected"
     assert hub.connected and hub.handle_event(ev(pygame.KEYDOWN, key=pygame.K_a)) is None
     assert ControllerHub().handle_event(ev(pygame.KEYDOWN, key=pygame.K_a)) is None   # real hub is inert on other events

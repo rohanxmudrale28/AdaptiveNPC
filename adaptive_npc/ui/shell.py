@@ -7,8 +7,8 @@ change game state. The view reads these attributes and the session's game; it wr
 from adaptive_npc.npc.live import MissingCheckpointError
 from adaptive_npc.render.clock import TickClock
 
-TITLE, CONTROLS, SELECT, COUNTDOWN, PLAY, ROUND_END, PAUSE, RESULTS, QUIT = (
-    "title", "controls", "select", "countdown", "play", "round_end", "pause", "results", "quit")
+TITLE, CONTROLS, BIND, SELECT, COUNTDOWN, PLAY, ROUND_END, PAUSE, RESULTS, QUIT = (
+    "title", "controls", "bind", "select", "countdown", "play", "round_end", "pause", "results", "quit")
 IN_MATCH = (COUNTDOWN, PLAY, ROUND_END, PAUSE)
 
 TITLE_ITEMS = ("PLAY", "CONTROLS", "QUIT")
@@ -19,7 +19,8 @@ NOTICE_CONTROLLER = "CONTROLLER DISCONNECTED"
 
 class Shell:
     def __init__(self, ui_cfg, enemies, tick_rate, session_factory, has_menu=True, select_enabled=True,
-                 enemy_index=0, blind=False, label="A", on_match_end=None, input_clear=None, max_catchup=4, panel=False):
+                 enemy_index=0, blind=False, label="A", on_match_end=None, input_clear=None, max_catchup=4, panel=False,
+                 bind_factory=None):
         self.cfg, self.enemies = ui_cfg, list(enemies)
         self.blind, self.label = bool(blind), label
         self.has_menu, self.select_enabled = bool(has_menu), bool(select_enabled)
@@ -45,6 +46,9 @@ class Shell:
         self.controls_cursor, self.controls_detail = 0, None   # CONTROLS screen: list cursor / open detail view
         self.notice = None            # message shown on the pause menu (controller unplugged)
         self.controller_connected, self.controller_name = False, ""   # set by the play loop; the controls page shows them
+        self.controller_generic = False   # a pad without an SDL mapping is connected: Enter on its page opens the binding screen
+        self.bind_factory, self.binder = bind_factory, None   # bind_factory() -> BindingFlow or None; binder = the active flow
+        self.controls_note = None         # one-line result of the last binding, shown on the controller page
         self.legend_visible, self.legend_timer = False, None
         self.fx = []                  # events of the latest update(), for view and sound: (kind, player)
         self._was_blocking = [False, False]
@@ -179,7 +183,7 @@ class Shell:
                 else:
                     self._start_match()
             elif item == "CONTROLS":
-                self.state, self.controls_cursor, self.controls_detail = CONTROLS, 0, None
+                self.state, self.controls_cursor, self.controls_detail, self.controls_note = CONTROLS, 0, None, None
             else:
                 self.state = QUIT
 
@@ -194,8 +198,27 @@ class Shell:
                 self.state = TITLE
         elif cmd in ("left", "right"):         # detail view: flip through the schemes
             self.controls_detail = self.controls_cursor = (self.controls_detail + (1 if cmd == "right" else -1)) % n
+        elif cmd == "confirm" and self.controls_detail == 2 and self.controller_generic and self._open_binder():
+            pass
         elif cmd in ("confirm", "back"):
             self.controls_detail = None
+
+    def _open_binder(self):
+        """Enter the binding screen for the generic pad, if the play loop gave us a way to bind one."""
+        self.binder = self.bind_factory() if self.bind_factory else None
+        if self.binder is not None:
+            self.state, self.controls_note = BIND, None
+        return self.binder is not None
+
+    def _on_bind(self, cmd):
+        if cmd == "confirm":                 # Enter: keep the current binding of this step
+            self.binder.skip()
+        elif cmd == "back":
+            self.end_binding()
+
+    def end_binding(self, note=None):
+        """Leave the binding screen (cancelled, finished or the pad was unplugged) for the controller page."""
+        self.binder, self.state, self.controls_note = None, CONTROLS, note
 
     def _on_select(self, cmd):
         n = len(self.enemies)
@@ -244,7 +267,9 @@ class Shell:
 
     def controller_lost(self):
         """The controller was unplugged: pause a running match and say why (menus are unaffected)."""
-        if self.state in IN_MATCH:
+        if self.state == BIND:
+            self.end_binding("CONTROLLER DISCONNECTED")
+        elif self.state in IN_MATCH:
             self.notice = NOTICE_CONTROLLER
             if self.state != PAUSE:
                 self._pause()

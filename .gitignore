@@ -10,6 +10,9 @@ logs/
 
 data/
 
+# per-machine controller bindings written by the controller binding screen
+configs/local_controller.yaml
+
 # final deliverable models (M14)
 !models/final/
 !models/final/**/*.pt
