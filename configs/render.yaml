@@ -12,18 +12,23 @@ play:
   opponent: scripted_npc   # any archetype name, switcher, or random (--opponent)
   rounds: 5                # rounds per session; 0 = until the window is closed (--rounds)
 
-# Key names as understood by pygame.key.key_code(). A tap is latched until the next tick;
-# held keys are re-read every tick (so block can be held).
+# Key names as understood by pygame.key.key_code(), plus mouse_left / mouse_middle / mouse_right. A tap or click is
+# latched until the next tick; held keys / buttons are re-read every tick (so block can be held). Mouse buttons only
+# count during active play. `--keys keyboard` loads the old set from configs/keys_keyboard.yaml instead.
 keys:
   up: [w, up]
   down: [s, down]
   left: [a, left]
   right: [d, right]
-  attack: [j, space]
-  block: [k, left shift]
-  dodge: [l, left ctrl]
+  attack: [mouse_left]
+  block: [mouse_right]
+  dodge: [q]
   next_round: [return]
   quit: [escape]
+# Old keyboard-only alternative (kept here for reference; same as configs/keys_keyboard.yaml):
+#  attack: [j, space]
+#  block: [k, left shift]
+#  dodge: [l, left ctrl]
 
 colors:
   background: [24, 26, 33]

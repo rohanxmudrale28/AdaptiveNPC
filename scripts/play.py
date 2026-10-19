@@ -5,8 +5,8 @@ python -m scripts.play --opponent rusher --rounds 3     # straight into a match 
 python -m scripts.play --opponent mbom --blind --label B --participant P01    # blind human test, logs to results/human/
 Opponents: a named enemy from configs/ui.yaml (dummy, rusty, reflex, seer, echo), an NPC version (scripted, ppo_none,
 ppo_predicted, mbom), or any players.yaml archetype / random / switcher. Tick rate: --tick-rate or the select screen.
-Controls are in configs/render.yaml (WASD/arrows move, J attack, K block, L dodge, Enter confirm, Esc pause,
-H legend, F scanlines, Tab demo panel, P screenshot, M mute, +/- volume). Sound is synthesized (no files):
+Controls are in configs/render.yaml (WASD/arrows move, left click attack, hold right click block, Q dodge, Enter
+confirm, Esc pause; --keys keyboard restores J attack, K block, L dodge). H legend, F scanlines, Tab demo panel, P screenshot, M mute, +/- volume). Sound is synthesized (no files):
 --mute starts silent, --no-music keeps effects only, --music forces music on (it is off by default with --blind).
 `--set ui.<key>=value` overrides configs/ui.yaml, other --set keys override render.yaml.
 """
@@ -42,6 +42,7 @@ def build_parser():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--config", default="configs/render.yaml")
     p.add_argument("--ui-config", default="configs/ui.yaml")
+    p.add_argument("--keys-config", default="configs/keys_keyboard.yaml", help="bindings used by --keys keyboard")
     p.add_argument("--env-config", default="configs/env.yaml")
     p.add_argument("--players-config", default="configs/players.yaml")
     p.add_argument("--tick-rate", type=float, default=None, help="game steps per second")
@@ -61,6 +62,8 @@ def build_parser():
     music = p.add_mutually_exclusive_group()
     music.add_argument("--no-music", action="store_true", help="effects only, no music")
     music.add_argument("--music", action="store_true", help="music on even with --blind (off by default there)")
+    p.add_argument("--keys", choices=("mouse", "keyboard"), default="mouse",
+                   help="control scheme: mouse (default, bindings in render.yaml) or keyboard (J/K/L, configs/keys_keyboard.yaml)")
     p.add_argument("--set", dest="overrides", action="append", default=[], metavar="KEY=VALUE")
     return p
 
@@ -89,6 +92,8 @@ def main(argv=None):
     args = build_parser().parse_args(argv)
     ui_over = [o[3:] for o in args.overrides if o.startswith("ui.")]
     cfg = load_config(args.config, [o for o in args.overrides if not o.startswith("ui.")])
+    if args.keys == "keyboard":
+        cfg["keys"] = load_config(args.keys_config)["keys"]
     ui = apply_overrides(load_config(args.ui_config), ui_over)
     ui.setdefault("tags", {})["CUSTOM"] = "silver"
     env_cfg = load_config(args.env_config)
@@ -150,8 +155,7 @@ def main(argv=None):
             elif cmd:
                 sound.command(cmd, shell.state)
                 shell.handle(cmd)
-            if shell.state == S.PLAY:
-                keys.handle_event(ev)
+            keys.handle_event(ev, active=shell.state == S.PLAY)
         shell.update(dt, keys.poll)
         sound.observe(shell)
         view.draw(shell, dt)

@@ -12,7 +12,8 @@ from adaptive_npc.ui import shell as S
 
 KEY_LABELS = {"left shift": "LSHIFT", "right shift": "RSHIFT", "left ctrl": "LCTRL", "right ctrl": "RCTRL",
               "return": "ENTER", "escape": "ESC", "space": "SPACE", "up": "UP", "down": "DOWN", "left": "LEFT",
-              "right": "RIGHT"}
+              "right": "RIGHT", "mouse_left": "LMB", "mouse_middle": "MMB", "mouse_right": "RMB"}
+LONG_LABELS = {"mouse_left": "LEFT CLICK", "mouse_middle": "MIDDLE CLICK", "mouse_right": "RIGHT CLICK"}
 HUD_H = 46
 BAR_W = 96
 ACTION_LABELS = (("IDL", "UP", "DWN", "LFT", "RGT", "ATK", "BLK", "DGE"))
@@ -25,7 +26,7 @@ def key_label(name):
 
 
 def keys_text(names, sep=" / "):
-    return sep.join(key_label(k) for k in names)
+    return sep.join(LONG_LABELS.get(k, key_label(k)) for k in names)
 
 
 class RetroView:

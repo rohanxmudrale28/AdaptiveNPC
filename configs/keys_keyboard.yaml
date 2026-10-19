@@ -1,0 +1,12 @@
+# Old all-keyboard bindings, selected with: python -m scripts.play --keys keyboard
+# Replaces the `keys:` block of render.yaml (same format; see the comment there).
+keys:
+  up: [w, up]
+  down: [s, down]
+  left: [a, left]
+  right: [d, right]
+  attack: [j, space]
+  block: [k, left shift]
+  dodge: [l, left ctrl]
+  next_round: [return]
+  quit: [escape]

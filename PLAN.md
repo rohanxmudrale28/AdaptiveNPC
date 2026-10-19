@@ -661,7 +661,7 @@ Conventions:
 20. **Human-play tick rate:**
     - Default tick rate is 4 steps/s (lowered from 8 after the first play-test found the game too difficult at 8). The tick rate only affects human play; training and evaluation are unaffected. Rendering runs at 60 fps.
     - Set in `render.yaml`, overridable with `--tick-rate`.
-    - Keys: WASD / arrows move, J attack, K block, L dodge, Enter confirm, Esc pause, H legend, F scanlines, **Tab** demo panel, **P** screenshot to `results/demo/`.
+    - Keys: WASD / arrows move, left click attack, hold right click block, Q dodge (`--keys keyboard` = old J/K/L), Enter confirm, Esc pause, H legend, F scanlines, **Tab** demo panel, **P** screenshot to `results/demo/`.
 21. **Learner drift:**
     - KL threshold `kl_min` = 0.05 nats, measured on 512 probe states between match start and match end.
     - Starting online LR: 3e-4. Tune upward until the threshold is met.

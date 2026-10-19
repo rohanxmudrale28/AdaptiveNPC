@@ -69,7 +69,10 @@ ECHO (MBOM). `--opponent` also accepts any archetype (`rusher`, `camper`, `repea
 `switcher`, `kiter`, `counter_puncher`) or `random`. Settings are in `configs/render.yaml` and `configs/ui.yaml`
 (`--set ui.<key>=value` overrides `ui.yaml`).
 
-Keys: WASD / arrows move, **J** attack, **K** block, **L** dodge, Enter confirm, Esc pause, H legend, F scanlines,
+Controls: WASD / arrows move, **left click** attack, **hold right click** block, **Q** dodge, Enter confirm, Esc pause,
+H legend, F scanlines (mouse clicks only count during active play; menus are keyboard-only). `--keys keyboard`
+restores the old all-keyboard set (**J** attack, **K** block, **L** dodge; bindings in `configs/keys_keyboard.yaml`).
+Also:
 **Tab** toggles the demo panel, **P** saves a screenshot to `results/demo/`, **M** mutes / unmutes all sound,
 **+** / **-** change the volume (default 0.5, set in `configs/ui.yaml`). Sound is synthesized in code; `--mute` starts
 silent and `--no-music` keeps the effects only. With `--blind` (and in `scripts/human_eval.py`) music is off by

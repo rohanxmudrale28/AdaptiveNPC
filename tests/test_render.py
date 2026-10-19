@@ -54,8 +54,110 @@ def test_tick_clock_rejects_bad_rate():
         TickClock(0)
 
 
+def ev(type_, **kw):
+    return pygame.event.Event(type_, **kw)
+
+
+def mouse_input(cfgs, now=None):
+    t = [100.0] if now is None else now
+    return KeyboardInput(cfgs[0]["keys"], clock=lambda: t[0]), t
+
+
+def test_default_bindings_are_mouse_and_q(cfgs):
+    keys = cfgs[0]["keys"]
+    assert (keys["attack"], keys["block"], keys["dodge"]) == (["mouse_left"], ["mouse_right"], ["q"])
+    kb, _ = mouse_input(cfgs)
+    for dead in (pygame.K_j, pygame.K_k, pygame.K_l, pygame.K_SPACE, pygame.K_LSHIFT, pygame.K_LCTRL):
+        kb.handle_event(ev(pygame.KEYDOWN, key=dead))
+        assert kb.poll(Pressed({dead: True})) == Action.IDLE
+
+
+def test_left_click_maps_to_attack(cfgs):
+    kb, _ = mouse_input(cfgs)
+    kb.handle_event(ev(pygame.MOUSEBUTTONDOWN, button=1, pos=(0, 0)))
+    kb.handle_event(ev(pygame.MOUSEBUTTONUP, button=1, pos=(0, 0)))   # released before the tick: still counts once
+    assert kb.poll(Pressed()) == Action.ATTACK
+    assert kb.poll(Pressed()) == Action.IDLE
+
+
+def test_right_click_held_maps_to_block_across_steps(cfgs):
+    kb, _ = mouse_input(cfgs)
+    kb.handle_event(ev(pygame.MOUSEBUTTONDOWN, button=3, pos=(0, 0)))
+    assert [kb.poll(Pressed()) for _ in range(3)] == [Action.BLOCK] * 3
+    kb.handle_event(ev(pygame.MOUSEBUTTONUP, button=3, pos=(0, 0)))
+    assert kb.poll(Pressed()) == Action.IDLE
+
+
+def test_q_maps_to_dodge(cfgs):
+    kb, _ = mouse_input(cfgs)
+    kb.handle_event(ev(pygame.KEYDOWN, key=pygame.K_q))
+    assert kb.poll(Pressed()) == Action.DODGE
+    assert kb.poll(Pressed({pygame.K_q: True})) == Action.DODGE
+
+
+def test_clicks_ignored_when_not_active_play(cfgs):
+    kb, _ = mouse_input(cfgs)
+    for button in (1, 3):
+        kb.handle_event(ev(pygame.MOUSEBUTTONDOWN, button=button, pos=(0, 0)), active=False)
+    assert kb.poll(Pressed()) == Action.IDLE
+    # a button pressed outside play and still down when play starts does not count, and its release is harmless
+    kb.handle_event(ev(pygame.MOUSEBUTTONUP, button=3, pos=(0, 0)), active=False)
+    assert kb.poll(Pressed()) == Action.IDLE
+
+
+def test_release_outside_play_clears_held_block(cfgs):
+    kb, _ = mouse_input(cfgs)
+    kb.handle_event(ev(pygame.MOUSEBUTTONDOWN, button=3, pos=(0, 0)))
+    assert kb.poll(Pressed()) == Action.BLOCK
+    kb.handle_event(ev(pygame.MOUSEBUTTONUP, button=3, pos=(0, 0)), active=False)   # e.g. released during pause
+    assert kb.poll(Pressed()) == Action.IDLE
+
+
+def test_focus_click_is_not_an_attack(cfgs):
+    kb, t = mouse_input(cfgs)
+    kb.handle_event(ev(pygame.WINDOWFOCUSGAINED))
+    kb.handle_event(ev(pygame.MOUSEBUTTONDOWN, button=1, pos=(0, 0)))
+    assert kb.poll(Pressed()) == Action.IDLE
+    t[0] += 1.0
+    kb.handle_event(ev(pygame.MOUSEBUTTONDOWN, button=1, pos=(0, 0)))
+    assert kb.poll(Pressed()) == Action.ATTACK
+
+
+def test_losing_focus_drops_held_block(cfgs):
+    kb, _ = mouse_input(cfgs)
+    kb.handle_event(ev(pygame.MOUSEBUTTONDOWN, button=3, pos=(0, 0)))
+    kb.handle_event(ev(pygame.WINDOWFOCUSLOST))
+    assert kb.poll(Pressed()) == Action.IDLE
+
+
+def test_keys_keyboard_restores_old_bindings():
+    keys = load_config("configs/keys_keyboard.yaml")["keys"]
+    assert (keys["attack"], keys["block"], keys["dodge"]) == (["j", "space"], ["k", "left shift"], ["l", "left ctrl"])
+    kb = KeyboardInput(keys)
+    kb.handle_event(ev(pygame.MOUSEBUTTONDOWN, button=1, pos=(0, 0)))
+    assert kb.poll(Pressed()) == Action.IDLE            # clicks do nothing in keyboard mode
+    assert kb.poll(Pressed({pygame.K_k: True})) == Action.BLOCK
+    kb.handle_event(ev(pygame.KEYDOWN, key=pygame.K_l))
+    assert kb.poll(Pressed()) == Action.DODGE
+
+
+def test_play_keys_flag_selects_keyboard_set():
+    from scripts import play
+    assert play.build_parser().parse_args([]).keys == "mouse"
+    assert play.build_parser().parse_args(["--keys", "keyboard"]).keys == "keyboard"
+
+
+def test_legend_shows_mouse_controls(cfgs):
+    from adaptive_npc.render.retro import RetroView
+    ui = load_config("configs/ui.yaml")
+    view = RetroView(ui, cfgs[0], cfgs[1]["arena_size"])
+    assert view.legend_lines()[0] == "MOVE WASD   ATTACK LMB   BLOCK RMB   DODGE Q"
+    kview = RetroView(ui, {**cfgs[0], "keys": load_config("configs/keys_keyboard.yaml")["keys"]}, cfgs[1]["arena_size"])
+    assert kview.legend_lines()[0] == "MOVE WASD   ATTACK J   BLOCK K   DODGE L"
+
+
 def test_keyboard_held_and_latched(cfgs):
-    kb = KeyboardInput(cfgs[0]["keys"])
+    kb = KeyboardInput(load_config("configs/keys_keyboard.yaml")["keys"])
     assert kb.poll(Pressed()) == Action.IDLE
     assert kb.poll(Pressed({pygame.K_w: True})) == Action.UP
     assert kb.poll(Pressed({pygame.K_k: True})) == Action.BLOCK
