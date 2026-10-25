@@ -1,0 +1,35 @@
+{
+  "enemy": "seer",
+  "npc_seed": 0,
+  "tick_rate": 4.0,
+  "input_scheme": "all",
+  "env_config": "configs/env.yaml",
+  "time_utc": "2026-10-25T13:53:03Z",
+  "npc_method": "ppo_predicted",
+  "label": "",
+  "seed": 0,
+  "completed": false,
+  "rounds_planned": 5,
+  "rounds_played": 1,
+  "rounds_won": {
+    "npc": 1,
+    "human": 0,
+    "draw": 0
+  },
+  "damage_dealt": 0,
+  "damage_taken": 5,
+  "prediction_accuracy": 0.18181818181818182,
+  "prediction_steps": 77,
+  "rounds": [
+    {
+      "round": 0,
+      "winner": "npc",
+      "hp_npc": 5,
+      "hp_human": 0,
+      "steps": 77,
+      "damage_dealt": 0,
+      "damage_taken": 5,
+      "pred_accuracy": 0.18181818181818182
+    }
+  ]
+}

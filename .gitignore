@@ -16,3 +16,4 @@ configs/local_controller.yaml
 # final deliverable models (M14)
 !models/final/
 !models/final/**/*.pt
+.venv/
