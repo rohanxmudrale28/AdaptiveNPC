@@ -232,3 +232,4 @@ models/final/   final deliverable checkpoints (everything else in models/ is git
 results/        committed metrics, config snapshots and plots per experiment
 report/figures/ final figures and captions.md
 ```
+# AdaptiveNPC
